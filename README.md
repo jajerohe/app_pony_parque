@@ -8,7 +8,7 @@ Sistema del **Pony Parque (Hotel Mesa de los Santos)** en Streamlit, con la base
 |---|---|---|
 | **Inicio** | Todos | Bienvenida y accesos a los módulos. |
 | **Mi cuenta** | Todos | Cambiar la propia contraseña. |
-| **Usuarios** | Administrador | Crear usuarios, asignar perfil, activar o desactivar y asignar una nueva contraseña. |
+| **Usuarios** | Administrador | Igual que en PODEX: buscar, seleccionar un usuario en la tabla y usar los botones para crear (con correo de bienvenida opcional), editar, cambiar la contraseña, activar o desactivar y eliminar. |
 
 ## Estructura
 
@@ -16,15 +16,14 @@ Sistema del **Pony Parque (Hotel Mesa de los Santos)** en Streamlit, con la base
 |---|---|
 | `app.py` | Inicio de sesión, menú, estilos, encabezado y navegación |
 | `inicio.py` | Página de inicio |
-| `usuarios.py` | Módulos Usuarios y Mi cuenta |
-| `datos.py` | Lectura y escritura en PostgreSQL |
+| `usuarios.py` | Módulos Usuarios y Mi cuenta, con sus consultas |
+| `correo.py` | Correo de bienvenida a los usuarios nuevos |
 | `auth.py` | Inicio de sesión contra la tabla `USUARIOS` |
 | `database.py` | Conexión a PostgreSQL |
-| `ui.py` | Funciones de interfaz compartidas |
 | `sql/schema.sql` | Tablas de la base de datos |
 | `assets/` | Logo e ícono |
 
-Para agregar un módulo: sus tablas van al final de `sql/schema.sql`, sus consultas en `datos.py`, su pantalla en un archivo propio, y la opción en el menú y en `TITULOS_PAGINA` de `app.py`.
+Para agregar un módulo: sus tablas van al final de `sql/schema.sql`, su pantalla y sus consultas en un archivo propio, y la opción en el menú y en `TITULOS_PAGINA` de `app.py`.
 
 ## Puesta en marcha
 
@@ -46,6 +45,18 @@ database = "neondb"
 user = "neondb_owner"
 password = "..."
 sslmode = "require"
+```
+
+Opcional, para enviar el correo de bienvenida al crear un usuario:
+
+```toml
+[email]
+smtp_host = "smtp.gmail.com"
+smtp_port = 587
+usuario = "notificaciones@dominio.com"
+password = "..."
+remitente = "Pony Parque <notificaciones@dominio.com>"
+app_url = "https://ponyparque.streamlit.app"
 ```
 
 ## Ejecución local

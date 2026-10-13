@@ -268,6 +268,20 @@ div[data-testid="stAlert"]{border-radius:7px!important}
 .pp-chip{display:inline-block;font-size:12px;font-weight:700;padding:6px 12px;border-radius:99px;background:#e6f4fc;color:#2a7aa8}
 .pp-chip.ok{background:#edf5dc;color:#4f7a16}
 hr{margin:8px 0!important;border-color:#f1e4d0!important}
+.pp-dialog-header{margin:-6px 0 14px!important}
+.pp-dialog-section{margin-top:14px!important}
+div[role="dialog"] div[data-testid="stForm"]{border-color:var(--border)!important;border-radius:8px!important;background:#fff!important}
+/* Botones circulares de acción (contenedores con key "acciones_*").
+   El color de cada botón sale de su key: btn_ok_, btn_info_, btn_warn_, btn_neutral_, btn_cancel_, btn_danger_. */
+[class*="st-key-acciones_"] div[data-testid="stButton"] button,[class*="st-key-acciones_"] div[data-testid="stFormSubmitButton"] button{width:40px!important;height:40px!important;min-height:40px!important;padding:0!important;border-radius:50%!important;border:none!important;background:linear-gradient(160deg,#8e4a1e,#4a2412)!important;box-shadow:0 2px 6px rgba(74,36,18,.25)!important;transition:transform .15s,box-shadow .15s}
+[class*="st-key-acciones_"] div[data-testid="stButton"] button:hover,[class*="st-key-acciones_"] div[data-testid="stFormSubmitButton"] button:hover{transform:scale(1.08);box-shadow:0 3px 10px rgba(74,36,18,.35)!important}
+[class*="st-key-acciones_"] div[data-testid="stButton"] button:disabled,[class*="st-key-acciones_"] div[data-testid="stFormSubmitButton"] button:disabled{opacity:.35;transform:none;box-shadow:none!important}
+[class*="st-key-acciones_"] div[data-testid="stButton"] button span,[class*="st-key-acciones_"] div[data-testid="stFormSubmitButton"] button span{color:#fff!important;font-size:20px!important;margin:0!important}
+.st-key-btn_usr_nuevo div[data-testid="stButton"] button,[class*="st-key-btn_ok_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#9ccc3c,#4e7a16)!important}
+.st-key-btn_usr_editar div[data-testid="stButton"] button,[class*="st-key-btn_info_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#5bb8e6,#1f6f9e)!important}
+.st-key-btn_usr_estado div[data-testid="stButton"] button,[class*="st-key-btn_warn_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#ffc629,#f08a1c)!important}
+.st-key-btn_usr_clave div[data-testid="stButton"] button,[class*="st-key-btn_neutral_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_cancel_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#C3C5C6,#403833)!important}
+.st-key-btn_usr_eliminar div[data-testid="stButton"] button,[class*="st-key-btn_danger_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#e5533d,#8e1c1c)!important}
 @media(max-width:900px){.block-container{padding:.7rem .75rem 1.5rem!important}section[data-testid="stSidebar"]{min-width:200px!important;width:200px!important}.pp-topbar{min-height:58px}}
 </style>
 """, unsafe_allow_html=True)
