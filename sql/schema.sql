@@ -45,3 +45,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS "USUARIOS_CORREO" ON public."USUARIOS" (lower(
 -- VALUES ('ADMIN', 'Nombre Apellido', 'correo@dominio.com',
 --         crypt('contraseña segura', gen_salt('bf')), 'Administrador');
 -- ============================================================
+
+-- ============================================================
+-- TAQUILLAS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."TAQUILLAS" (
+    "ID_TAQUILLA"       text PRIMARY KEY,
+    "NOMBRE"            text NOT NULL,
+    "UBICACION"         text,
+    "ACTIVO"            boolean NOT NULL DEFAULT true,
+    "FECHA_CREACION"    timestamptz NOT NULL DEFAULT now(),
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now()
+);

@@ -8,6 +8,7 @@ Sistema del **Pony Parque (Hotel Mesa de los Santos)** en Streamlit, con la base
 |---|---|---|
 | **Inicio** | Todos | Bienvenida y accesos a los módulos. |
 | **Mi cuenta** | Todos | Cambiar la propia contraseña. |
+| **Taquillas** | Administrador | Igual que Usuarios: buscar, seleccionar y crear, editar, activar o desactivar y eliminar taquillas (código, nombre y ubicación). |
 | **Usuarios** | Administrador | Igual que en PODEX: buscar, seleccionar un usuario en la tabla y usar los botones para crear (con correo de bienvenida opcional), editar, cambiar la contraseña, activar o desactivar y eliminar. |
 
 ## Estructura
@@ -16,6 +17,7 @@ Sistema del **Pony Parque (Hotel Mesa de los Santos)** en Streamlit, con la base
 |---|---|
 | `app.py` | Inicio de sesión, menú, estilos, encabezado y navegación |
 | `inicio.py` | Página de inicio |
+| `taquillas.py` | Módulo Taquillas, con sus consultas |
 | `usuarios.py` | Módulos Usuarios y Mi cuenta, con sus consultas |
 | `correo.py` | Correo de bienvenida a los usuarios nuevos |
 | `auth.py` | Inicio de sesión contra la tabla `USUARIOS` |
