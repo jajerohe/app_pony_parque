@@ -3,7 +3,6 @@ Módulo de taquillas (solo Administrador): crear, editar, activar o
 desactivar y eliminar las taquillas del parque. Funciona igual que Usuarios.
 """
 
-import re
 from html import escape
 
 import pandas as pd
@@ -12,8 +11,6 @@ import streamlit as st
 
 from usuarios import ejecutar, encabezado_ventana, ficha, seccion
 from database import Database
-
-PATRON_CODIGO = re.compile(r"^[A-Z0-9_.-]{1,20}$")
 
 
 # ============================================================
@@ -51,16 +48,8 @@ def ventana_crear_taquilla(usuario_actual):
     encabezado_ventana("Nueva Taquilla")
 
     with st.form("form_crear_taquilla"):
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            codigo = st.text_input(
-                "Código",
-                max_chars=20,
-                placeholder="Ej: T01",
-                help="Letras, números, punto, guion o guion bajo. Se guarda en MAYÚSCULAS."
-            )
-        with c2:
-            nombre = st.text_input("Nombre", placeholder="Ej: Taquilla principal")
+        nombre = st.text_input("Nombre", placeholder="Ej: Taquilla principal",
+                               help="El ID de la taquilla lo genera el sistema al crearla.")
         ubicacion = st.text_input("Ubicación (opcional)", placeholder="Ej: Entrada del parque")
 
         with st.container(key="acciones_dlg_crear_taq", horizontal=True,
@@ -71,31 +60,32 @@ def ventana_crear_taquilla(usuario_actual):
     if not crear:
         return
 
-    codigo = (codigo or "").strip().upper()
     nombre = (nombre or "").strip()
     ubicacion = (ubicacion or "").strip() or None
 
-    if not PATRON_CODIGO.match(codigo):
-        st.error("❌ El código debe tener entre 1 y 20 caracteres: letras, números, punto, guion o guion bajo.")
-        return
     if not nombre:
         st.error("❌ Debe ingresar el nombre.")
         return
 
+    db = Database()
     try:
-        ejecutar(
-            '''INSERT INTO public."TAQUILLAS" ("ID_TAQUILLA","NOMBRE","UBICACION","USUARIO_ACTUALIZA")
-               VALUES (%s,%s,%s,%s)''',
-            (codigo, nombre, ubicacion, usuario_actual)
+        db.conectar()
+        db.execute(
+            '''INSERT INTO public."TAQUILLAS" ("NOMBRE","UBICACION","USUARIO_ACTUALIZA")
+               VALUES (%s,%s,%s)
+               RETURNING "ID_TAQUILLA"''',
+            (nombre, ubicacion, usuario_actual)
         )
-    except psycopg.errors.UniqueViolation:
-        st.error(f"❌ Ya existe una taquilla con el código {codigo}.")
-        return
+        id_taquilla = db.fetchone()[0]
+        db.commit()
     except Exception as e:
+        db.rollback()
         st.error(f"❌ No fue posible crear la taquilla: {e}")
         return
+    finally:
+        db.cerrar()
 
-    notificar(f"✅ Taquilla {codigo} creada correctamente.")
+    notificar(f"✅ Taquilla {id_taquilla} · {nombre} creada correctamente.")
 
 
 @st.dialog(" ", width="large")
@@ -103,7 +93,7 @@ def ventana_editar_taquilla(fila, usuario_actual):
 
     encabezado_ventana("Editar Taquilla")
 
-    ficha([("Código", fila["ID_TAQUILLA"]), ("Nombre", fila["NOMBRE"]),
+    ficha([("ID", fila["ID_TAQUILLA"]), ("Nombre", fila["NOMBRE"]),
            ("Estado", "Activa" if fila["ACTIVO"] else "Inactiva")])
 
     with st.form(f"form_editar_taq_{fila['ID_TAQUILLA']}"):
@@ -146,7 +136,7 @@ def ventana_estado_taquilla(fila, usuario_actual):
     activar = not fila["ACTIVO"]
     accion = "activar" if activar else "desactivar"
 
-    ficha([("Código", fila["ID_TAQUILLA"]), ("Nombre", fila["NOMBRE"]), ("Ubicación", fila["UBICACION"])])
+    ficha([("ID", fila["ID_TAQUILLA"]), ("Nombre", fila["NOMBRE"]), ("Ubicación", fila["UBICACION"])])
     seccion(
         f"¿Está seguro que desea {accion} esta taquilla?",
         None if activar else "Una taquilla desactivada no se podrá usar en la operación. Sus datos se conservan."
@@ -184,7 +174,7 @@ def ventana_eliminar_taquilla(fila):
 
     encabezado_ventana("Eliminar Taquilla")
 
-    ficha([("Código", fila["ID_TAQUILLA"]), ("Nombre", fila["NOMBRE"]), ("Ubicación", fila["UBICACION"])])
+    ficha([("ID", fila["ID_TAQUILLA"]), ("Nombre", fila["NOMBRE"]), ("Ubicación", fila["UBICACION"])])
     seccion(
         "¿Está seguro que desea eliminar esta taquilla?",
         "Esta acción no se puede deshacer. Si solo quiere dejar de usarla, desactívela."
@@ -236,7 +226,7 @@ def mostrar_modulo_taquillas(usuario_actual):
 
     texto = st.text_input(
         "🔎 Buscar taquilla",
-        placeholder="Digite código, nombre o ubicación..."
+        placeholder="Digite ID, nombre o ubicación..."
     )
 
     if texto and not taquillas.empty:
@@ -295,7 +285,7 @@ def mostrar_modulo_taquillas(usuario_actual):
         return
 
     tabla = pd.DataFrame({
-        "CÓDIGO": taquillas["ID_TAQUILLA"],
+        "ID": taquillas["ID_TAQUILLA"],
         "NOMBRE": taquillas["NOMBRE"],
         "UBICACIÓN": taquillas["UBICACION"].fillna("—"),
         "ESTADO": taquillas["ACTIVO"].map(lambda v: "🟢 Activa" if v else "🔴 Inactiva"),
@@ -312,7 +302,7 @@ def mostrar_modulo_taquillas(usuario_actual):
         width="stretch",
         height=min(38 + 35 * len(tabla), 640),
         column_config={
-            "CÓDIGO": st.column_config.TextColumn("CÓDIGO", width="small"),
+            "ID": st.column_config.NumberColumn("ID", width="small", format="%d"),
             "NOMBRE": st.column_config.TextColumn("NOMBRE", width="medium"),
             "UBICACIÓN": st.column_config.TextColumn("UBICACIÓN", width="medium"),
             "ESTADO": st.column_config.TextColumn("ESTADO", width="small"),

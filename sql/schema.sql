@@ -50,7 +50,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "USUARIOS_CORREO" ON public."USUARIOS" (lower(
 -- TAQUILLAS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public."TAQUILLAS" (
-    "ID_TAQUILLA"       text PRIMARY KEY,
+    "ID_TAQUILLA"       integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "NOMBRE"            text NOT NULL,
     "UBICACION"         text,
     "ACTIVO"            boolean NOT NULL DEFAULT true,
