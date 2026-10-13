@@ -4,7 +4,7 @@ import html
 
 import streamlit as st
 
-from ui import ficha, seccion
+from usuarios import ficha, seccion
 
 
 def mostrar_inicio(nombre_actual, usuario_actual, perfil_actual, hoy):
