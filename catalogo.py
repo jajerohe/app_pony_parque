@@ -24,6 +24,12 @@ from usuarios import encabezado_ventana, ficha, seccion
 #   extra        columna del campo opcional ("UBICACION")
 #   singular     "taquilla" · plural "taquillas"
 #   etiqueta_extra, ejemplo_nombre, ejemplo_extra, icono_nuevo, aviso_desactivar
+#   asignacion   (opcional) relación con otro catálogo, por ejemplo las manillas
+#                que vende cada taquilla:
+#                  tabla        tabla de la relación ("TAQUILLAS_MANILLAS")
+#                  tabla_otro   catálogo asignado ("MANILLAS")
+#                  id_otro      columna del ID del catálogo asignado ("ID_MANILLA")
+#                  titulo       "Manillas" · singular "manilla" · icono del botón
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -37,6 +43,23 @@ def obtener_registros(tabla, id_col, extra_col):
             ORDER BY "{id_col}"
         ''')
         return pd.DataFrame(db.fetchall(), columns=["ID", "NOMBRE", "EXTRA", "ACTIVO"])
+    finally:
+        db.cerrar()
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def obtener_asignaciones(tabla_rel, id_col, tabla_otro, id_otro):
+    """Pares (ID del registro, ID asignado, nombre asignado, activo) de la relación."""
+    db = Database()
+    try:
+        db.conectar()
+        db.execute(f'''
+            SELECT r."{id_col}", o."{id_otro}", o."NOMBRE", o."ACTIVO"
+            FROM public."{tabla_rel}" r
+            JOIN public."{tabla_otro}" o ON o."{id_otro}" = r."{id_otro}"
+            ORDER BY o."{id_otro}"
+        ''')
+        return pd.DataFrame(db.fetchall(), columns=["ID", "ID_OTRO", "NOMBRE", "ACTIVO"])
     finally:
         db.cerrar()
 
@@ -236,6 +259,61 @@ def ventana_eliminar(cfg, fila):
     _notificar(cfg, f"✅ {_titulo(singular)} {fila['ID']} eliminada correctamente.")
 
 
+@st.dialog(" ", width="large")
+def ventana_asignar(cfg, fila, asignados, usuario_actual):
+
+    k, singular, asig = cfg["clave"], cfg["singular"], cfg["asignacion"]
+    encabezado_ventana(f"Asignar {asig['titulo']}")
+
+    ficha([("ID", fila["ID"]), ("Nombre", fila["NOMBRE"]),
+           ("Estado", "Activa" if fila["ACTIVO"] else "Inactiva")])
+
+    otros = obtener_registros(asig["tabla_otro"], asig["id_otro"], "NOMBRE")
+    actuales = set(asignados["ID_OTRO"])
+    # Se ofrecen los activos y, para no perderlos al guardar, los ya asignados aunque estén inactivos.
+    opciones = otros[otros["ACTIVO"] | otros["ID"].isin(actuales)]
+    nombres = {
+        int(o["ID"]): o["NOMBRE"] + ("" if o["ACTIVO"] else " (inactiva)")
+        for _, o in opciones.iterrows()
+    }
+
+    with st.form(f"form_asignar_{k}_{fila['ID']}"):
+        elegidos = st.multiselect(
+            f"{asig['titulo']} de esta {singular}",
+            list(nombres),
+            default=[i for i in nombres if i in actuales],
+            format_func=lambda i: nombres[i],
+            placeholder=f"Seleccione las {asig['titulo'].lower()}...",
+        )
+        with st.container(key=f"acciones_dlg_asignar_{k}", horizontal=True,
+                          horizontal_alignment="right", gap="small"):
+            guardar = st.form_submit_button("", icon=":material/save:", key=f"btn_ok_asignar_{k}",
+                                            help="Guardar asignación")
+
+    if not guardar:
+        return
+
+    db = Database()
+    try:
+        db.conectar()
+        db.execute(f'DELETE FROM public."{asig["tabla"]}" WHERE "{cfg["id"]}" = %s', (int(fila["ID"]),))
+        for id_otro in elegidos:
+            db.execute(
+                f'INSERT INTO public."{asig["tabla"]}" ("{cfg["id"]}","{asig["id_otro"]}","USUARIO_ACTUALIZA") '
+                'VALUES (%s,%s,%s)',
+                (int(fila["ID"]), int(id_otro), usuario_actual)
+            )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        st.error(f"❌ No fue posible guardar la asignación: {e}")
+        return
+    finally:
+        db.cerrar()
+
+    _notificar(cfg, f"✅ {_titulo(singular)} {fila['ID']}: {len(elegidos)} {asig['titulo'].lower()} asignadas.")
+
+
 # ============================================================
 # PÁGINA PRINCIPAL DEL CATÁLOGO
 # ============================================================
@@ -249,8 +327,13 @@ def mostrar_catalogo(cfg, usuario_actual):
         tipo, texto = mensaje
         (st.warning if tipo == "warning" else st.success)(texto)
 
+    asig = cfg.get("asignacion")
     try:
         registros = obtener_registros(cfg["tabla"], cfg["id"], cfg["extra"])
+        asignaciones = (
+            obtener_asignaciones(asig["tabla"], cfg["id"], asig["tabla_otro"], asig["id_otro"])
+            if asig else None
+        )
     except psycopg.errors.UndefinedTable:
         st.error(f"❌ Falta crear la tabla de {plural}: ejecute `sql/schema.sql` en Neon → SQL Editor.")
         return
@@ -310,6 +393,10 @@ def mostrar_catalogo(cfg, usuario_actual):
                          help=f"Activar {singular}" if activo is False else f"Desactivar {singular}"):
                 ventana_estado(cfg, fila, usuario_actual)
 
+            if asig and st.button("", icon=asig["icono"], key=f"btn_{k}_asignar",
+                                  disabled=fila is None, help=f"Asignar {asig['titulo'].lower()}"):
+                ventana_asignar(cfg, fila, asignaciones[asignaciones["ID"] == fila["ID"]], usuario_actual)
+
             if st.button("", icon=":material/delete:", key=f"btn_{k}_eliminar",
                          disabled=fila is None, help=f"Eliminar {singular}"):
                 ventana_eliminar(cfg, fila)
@@ -327,6 +414,21 @@ def mostrar_catalogo(cfg, usuario_actual):
         "ESTADO": registros["ACTIVO"].map(lambda v: "🟢 Activa" if v else "🔴 Inactiva"),
     })
 
+    columnas = {
+        "ID": st.column_config.NumberColumn("ID", width="small", format="%d"),
+        "NOMBRE": st.column_config.TextColumn("NOMBRE", width="medium"),
+        columna_extra: st.column_config.TextColumn(columna_extra, width="medium"),
+    }
+    if asig:
+        columna_asig = asig["titulo"].upper()
+        por_registro = {
+            id_: ", ".join(n + ("" if a else " (inactiva)") for n, a in zip(grupo["NOMBRE"], grupo["ACTIVO"]))
+            for id_, grupo in asignaciones.groupby("ID")
+        }
+        tabla.insert(3, columna_asig, registros["ID"].map(lambda i: por_registro.get(i, "—")))
+        columnas[columna_asig] = st.column_config.TextColumn(columna_asig, width="large")
+    columnas["ESTADO"] = st.column_config.TextColumn("ESTADO", width="small")
+
     st.markdown('<div style="height:14px"></div>', unsafe_allow_html=True)
 
     st.dataframe(
@@ -337,10 +439,5 @@ def mostrar_catalogo(cfg, usuario_actual):
         hide_index=True,
         width="stretch",
         height=min(38 + 35 * len(tabla), 640),
-        column_config={
-            "ID": st.column_config.NumberColumn("ID", width="small", format="%d"),
-            "NOMBRE": st.column_config.TextColumn("NOMBRE", width="medium"),
-            columna_extra: st.column_config.TextColumn(columna_extra, width="medium"),
-            "ESTADO": st.column_config.TextColumn("ESTADO", width="small"),
-        },
+        column_config=columnas,
     )

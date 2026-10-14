@@ -82,3 +82,14 @@ SELECT nombre FROM (VALUES
 ) AS m (orden, nombre)
 WHERE NOT EXISTS (SELECT 1 FROM public."MANILLAS")
 ORDER BY orden;
+
+-- ============================================================
+-- MANILLAS QUE VENDE CADA TAQUILLA
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."TAQUILLAS_MANILLAS" (
+    "ID_TAQUILLA"       integer NOT NULL REFERENCES public."TAQUILLAS" ("ID_TAQUILLA") ON DELETE CASCADE,
+    "ID_MANILLA"        integer NOT NULL REFERENCES public."MANILLAS" ("ID_MANILLA"),
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY ("ID_TAQUILLA", "ID_MANILLA")
+);
