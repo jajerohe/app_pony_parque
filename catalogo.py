@@ -87,6 +87,21 @@ def _notificar(cfg, mensaje, tipo="success"):
     st.rerun()
 
 
+ANCHO_ASIGNACION = 560  # píxeles de la columna de asignaciones
+
+
+def _lineas_etiquetas(nombres):
+    """Líneas que ocupan las etiquetas en la columna de asignaciones, para dar
+    a las filas la altura justa y que no se corte ninguna."""
+    lineas, usado = 1, 0
+    for n in nombres:
+        ancho = 6.5 * len(n) + 28
+        if usado and usado + ancho > ANCHO_ASIGNACION - 16:
+            lineas, usado = lineas + 1, 0
+        usado += ancho
+    return lineas
+
+
 def _titulo(texto):
     return texto[:1].upper() + texto[1:]
 
@@ -414,6 +429,7 @@ def mostrar_catalogo(cfg, usuario_actual):
         "ESTADO": registros["ACTIVO"].map(lambda v: "🟢 Activa" if v else "🔴 Inactiva"),
     })
 
+    alto_fila = 35
     columnas = {
         "ID": st.column_config.NumberColumn("ID", width="small", format="%d"),
         "NOMBRE": st.column_config.TextColumn("NOMBRE", width="medium"),
@@ -421,12 +437,15 @@ def mostrar_catalogo(cfg, usuario_actual):
     }
     if asig:
         columna_asig = asig["titulo"].upper()
+        # Cada manilla se muestra como una etiqueta separada, sin cortar el texto.
         por_registro = {
-            id_: ", ".join(n + ("" if a else " (inactiva)") for n, a in zip(grupo["NOMBRE"], grupo["ACTIVO"]))
+            id_: [n + ("" if a else " (inactiva)") for n, a in zip(grupo["NOMBRE"], grupo["ACTIVO"])]
             for id_, grupo in asignaciones.groupby("ID")
         }
-        tabla.insert(3, columna_asig, registros["ID"].map(lambda i: por_registro.get(i, "—")))
-        columnas[columna_asig] = st.column_config.TextColumn(columna_asig, width="large")
+        listas = registros["ID"].map(lambda i: por_registro.get(i, []))
+        tabla.insert(3, columna_asig, listas)
+        columnas[columna_asig] = st.column_config.ListColumn(columna_asig, width=ANCHO_ASIGNACION)
+        alto_fila = max(35, 12 + 28 * max((_lineas_etiquetas(l) for l in listas), default=1))
     columnas["ESTADO"] = st.column_config.TextColumn("ESTADO", width="small")
 
     st.markdown('<div style="height:14px"></div>', unsafe_allow_html=True)
@@ -438,6 +457,7 @@ def mostrar_catalogo(cfg, usuario_actual):
         selection_mode="single-row",
         hide_index=True,
         width="stretch",
-        height=min(38 + 35 * len(tabla), 640),
+        row_height=alto_fila,
+        height=min(38 + alto_fila * len(tabla), 640),
         column_config=columnas,
     )
