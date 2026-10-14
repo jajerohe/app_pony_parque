@@ -156,6 +156,16 @@ CREATE TABLE IF NOT EXISTS public."TARIFAS" (
     "FECHA_ACTUALIZA"   timestamptz   NOT NULL DEFAULT now(),
     CHECK ("HASTA" >= "DESDE")
 );
+-- Una tarifa activa por taquilla, manilla y tipo en cada día: así en ventas
+-- nunca hay dos precios posibles para el mismo tipo.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+DO $$ BEGIN
+    ALTER TABLE public."TARIFAS" ADD CONSTRAINT "TARIFAS_SIN_CRUCE" EXCLUDE USING gist (
+        "ID_TAQUILLA" WITH =, "ID_MANILLA" WITH =, "ID_TIPO" WITH =,
+        daterange("DESDE", "HASTA", '[]') WITH &&
+    ) WHERE ("ACTIVO");
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
+END $$;
 -- Evita cargar dos veces exactamente la misma tarifa.
 CREATE UNIQUE INDEX IF NOT EXISTS "TARIFAS_UNICA"
     ON public."TARIFAS" ("ID_TAQUILLA", "ID_MANILLA", "ID_TIPO", "VALOR", "DESDE", "HASTA");

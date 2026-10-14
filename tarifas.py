@@ -158,8 +158,24 @@ def _campos_tarifa(prefijo, fila=None, hoy=None):
     return id_categoria, id_tipo, valor, desde, hasta
 
 
+def _choque(tarifas, id_taquilla, id_manilla, id_tipo, desde, hasta, excluir=None):
+    """ID de una tarifa activa de la misma taquilla, manilla y tipo cuyas fechas se
+    cruzan con desde/hasta (None si no hay). Así en ventas nunca hay dos precios
+    posibles para el mismo tipo en un mismo día."""
+    otras = tarifas[
+        tarifas["ACTIVO"]
+        & (tarifas["ID_TAQUILLA"] == id_taquilla) & (tarifas["ID_MANILLA"] == id_manilla)
+        & (tarifas["ID_TIPO"] == id_tipo) & (tarifas["ID"] != excluir)
+        & (tarifas["DESDE"] <= hasta) & (tarifas["HASTA"] >= desde)
+    ]
+    return None if otras.empty else int(otras["ID"].iloc[0])
+
+
 def _error_bd(e, accion):
-    if isinstance(e, psycopg.errors.UniqueViolation):
+    if isinstance(e, psycopg.errors.ExclusionViolation):
+        st.error("❌ Ya existe una tarifa activa del mismo tipo para esa taquilla y manilla en esas fechas. "
+                 "Use otro tipo (por ejemplo Convenio 2) o ajuste la vigencia.")
+    elif isinstance(e, psycopg.errors.UniqueViolation):
         st.error("❌ Ya existe una tarifa igual (misma taquilla, manilla, tipo, valor y vigencia).")
     else:
         st.error(f"❌ No fue posible {accion} la tarifa: {e}")
@@ -210,6 +226,12 @@ def ventana_crear(tarifas, usuario_actual, hoy):
         else "Debe seleccionar al menos una taquilla." if not ids_taquilla
         else _validar(id_categoria, id_tipo, valor, desde, hasta)
     )
+    if not error:
+        chocan = [f"{nombres_taq[i]} (tarifa {c})" for i in ids_taquilla
+                  if (c := _choque(tarifas, i, id_manilla, id_tipo, desde, hasta))]
+        if chocan:
+            error = ("Ya existe una tarifa activa del mismo tipo en esas fechas para: "
+                     + ", ".join(chocan) + ". Use otro tipo (por ejemplo Convenio 2) o ajuste la vigencia.")
     if error:
         st.error(f"❌ {error}")
         return
@@ -270,6 +292,11 @@ def ventana_editar(fila, tarifas, usuario_actual):
     if not error and (int(id_taquilla), int(id_manilla)) not in _asignadas():
         error = (f"La taquilla {nombres_taq[id_taquilla]} no tiene asignada la manilla "
                  f"{nombres_man[id_manilla]}. Asígnela en Taquillas → Asignar manillas.")
+    if not error and fila["ACTIVO"]:
+        choca = _choque(tarifas, id_taquilla, id_manilla, id_tipo, desde, hasta, excluir=fila["ID"])
+        if choca:
+            error = (f"La tarifa {choca} ya es del mismo tipo para esa taquilla y manilla en esas fechas. "
+                     "Use otro tipo o ajuste la vigencia.")
     if error:
         st.error(f"❌ {error}")
         return
@@ -420,6 +447,8 @@ def _preparar_importacion(datos):
     categorias = {_normalizar(n): i for i, n in _lista("CATEGORIAS", "ID_CATEGORIA").items()}
     tipos = {_normalizar(n): i for i, n in _lista("TIPOS_TARIFA", "ID_TIPO").items()}
     asignadas = _asignadas()
+    existentes = obtener_tarifas()
+    nuevas = []  # filas válidas del archivo, para detectar repetidas dentro del mismo archivo
 
     filas = []
     for _, f in datos.iterrows():
@@ -443,6 +472,15 @@ def _preparar_importacion(datos):
         error = _validar(id_cat, id_tipo, valor, desde, hasta) if id_cat and id_tipo else None
         if error:
             problemas.append(error.rstrip(".").lower())
+        if not problemas:
+            choca = _choque(existentes, id_taq, id_man, id_tipo, desde, hasta)
+            if choca:
+                problemas.append(f"ya existe la tarifa {choca} de este tipo en esas fechas")
+            elif any(n[:3] == (id_taq, id_man, id_tipo) and n[3] <= hasta and n[4] >= desde for n in nuevas):
+                problemas.append(f"el tipo «{tipo}» está repetido en el archivo para esta taquilla y "
+                                 "manilla en las mismas fechas (¿debería ser otro tipo, como Convenio 2?)")
+            else:
+                nuevas.append((id_taq, id_man, id_tipo, desde, hasta))
         filas.append({
             "CATEGORIA": cat, "ID_CATEGORIA": id_cat,
             "TAQUILLA": str(f["TAQUILLA"] or "").strip(), "ID_TAQUILLA": id_taq,
