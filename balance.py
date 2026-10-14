@@ -1,4 +1,4 @@
-"""Balance de ventas por día o por mes: totales, liquidaciones de caja y
+"""Balance de ventas por día o por mes: totales y
 detalle por taquilla, categoría, manilla y tipo de tarifa."""
 
 import calendar
@@ -48,19 +48,6 @@ def obtener_ventas(desde, hasta):
     return datos
 
 
-@st.cache_data(ttl=60, show_spinner=False)
-def obtener_liquidaciones(desde, hasta):
-    datos = _consultar(
-        '''SELECT l."FECHA", l."ID_TAQUILLA", t."NOMBRE",
-                  l."EFECTIVO" + l."TARJETA" + l."TRANSFERENCIA" + l."OTROS", l."CERRADA"
-           FROM public."LIQUIDACIONES" l JOIN public."TAQUILLAS" t ON t."ID_TAQUILLA" = l."ID_TAQUILLA"
-           WHERE l."FECHA" BETWEEN %s AND %s''',
-        (desde, hasta), ("FECHA", "ID_TAQUILLA", "TAQUILLA", "RECIBIDO", "CERRADA"),
-    )
-    datos["RECIBIDO"] = datos["RECIBIDO"].astype(float)
-    return datos
-
-
 def _tabla_pesos(df, columnas_pesos, columnas_num=()):
     config = {c: st.column_config.TextColumn(c, alignment="right") for c in columnas_pesos}
     config.update({c: st.column_config.NumberColumn(c, format="%d") for c in columnas_num})
@@ -91,41 +78,35 @@ def mostrar_balance(hoy):
 
     try:
         ventas = obtener_ventas(desde, hasta)
-        liquidaciones = obtener_liquidaciones(desde, hasta)
     except psycopg.errors.UndefinedTable:
         st.error("❌ Falta crear las tablas de ventas: ejecute `sql/schema.sql` en Neon → SQL Editor.")
         return
 
     total = float(ventas["TOTAL"].sum())
-    recibido = float(liquidaciones["RECIBIDO"].sum())
-    cajas = ventas[["FECHA", "ID_TAQUILLA"]].drop_duplicates()
-    cerradas = int(liquidaciones["CERRADA"].sum())
+    dias = ventas["FECHA"].nunique()
 
     with st.container(horizontal=True, gap="medium"):
         st.metric(f"Ventas · {titulo}", pesos(total), border=True)
         st.metric("Manillas vendidas", f"{int(ventas['CANTIDAD'].sum()):,}".replace(",", "."), border=True)
-        st.metric("Recibido en cajas", pesos(recibido), border=True)
-        st.metric("Diferencia", pesos(recibido - total) if not liquidaciones.empty else "—", border=True,
-                  help="Recibido en las liquidaciones menos lo vendido.")
-        st.metric("Cajas cerradas", f"{cerradas} de {len(cajas)}", border=True)
+        st.metric("Taquillas con ventas", ventas["ID_TAQUILLA"].nunique(), border=True)
+        if periodo == "Mes":
+            st.metric("Promedio por día", pesos(total / dias) if dias else "—", border=True,
+                      help="Total vendido dividido entre los días con ventas.")
 
     if ventas.empty:
         st.info(f"No hay ventas registradas en {titulo}.")
         return
 
-    # Por taquilla: vendido, recibido y diferencia.
+    # Por taquilla.
     por_taq = ventas.groupby(["ID_TAQUILLA", "TAQUILLA"]).agg(MANILLAS=("CANTIDAD", "sum"),
                                                               VENTAS=("TOTAL", "sum")).reset_index()
-    rec = liquidaciones.groupby("ID_TAQUILLA")["RECIBIDO"].sum()
-    por_taq["RECIBIDO"] = por_taq["ID_TAQUILLA"].map(rec).fillna(0)
-    por_taq["DIFERENCIA"] = por_taq["RECIBIDO"] - por_taq["VENTAS"]
     por_taq = por_taq.drop(columns="ID_TAQUILLA")
-    por_taq.loc[len(por_taq)] = ["TOTAL", por_taq["MANILLAS"].sum(), por_taq["VENTAS"].sum(),
-                                 por_taq["RECIBIDO"].sum(), por_taq["DIFERENCIA"].sum()]
+    por_taq["PARTICIPACIÓN"] = (por_taq["VENTAS"] / total * 100).round(1).astype(str) + " %"
+    por_taq.loc[len(por_taq)] = ["TOTAL", por_taq["MANILLAS"].sum(), por_taq["VENTAS"].sum(), "100.0 %"]
 
     with st.container(border=True):
-        seccion(f"🎟️ Por taquilla · {titulo}", "Lo vendido contra lo recibido en las liquidaciones de caja.")
-        _tabla_pesos(por_taq, ["VENTAS", "RECIBIDO", "DIFERENCIA"], ["MANILLAS"])
+        seccion(f"🎟️ Por taquilla · {titulo}")
+        _tabla_pesos(por_taq, ["VENTAS"], ["MANILLAS"])
 
     if periodo == "Mes":
         with st.container(border=True):

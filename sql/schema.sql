@@ -188,24 +188,6 @@ CREATE TABLE IF NOT EXISTS public."VENTAS" (
 CREATE INDEX IF NOT EXISTS "VENTAS_MANILLA" ON public."VENTAS" ("FECHA", "ID_TAQUILLA", "ID_MANILLA");
 
 -- ============================================================
--- LIQUIDACIÓN (CIERRE DE CAJA) POR TAQUILLA Y FECHA
--- ============================================================
-CREATE TABLE IF NOT EXISTS public."LIQUIDACIONES" (
-    "FECHA"             date          NOT NULL,
-    "ID_TAQUILLA"       integer       NOT NULL REFERENCES public."TAQUILLAS" ("ID_TAQUILLA"),
-    "EFECTIVO"          numeric(12,2) NOT NULL DEFAULT 0 CHECK ("EFECTIVO" >= 0),
-    "TARJETA"           numeric(12,2) NOT NULL DEFAULT 0 CHECK ("TARJETA" >= 0),
-    "TRANSFERENCIA"     numeric(12,2) NOT NULL DEFAULT 0 CHECK ("TRANSFERENCIA" >= 0),
-    "OTROS"             numeric(12,2) NOT NULL DEFAULT 0 CHECK ("OTROS" >= 0),
-    "TOTAL_VENTAS"      numeric(12,2) NOT NULL DEFAULT 0,
-    "OBSERVACION"       text,
-    "CERRADA"           boolean       NOT NULL DEFAULT false,
-    "USUARIO_ACTUALIZA" text,
-    "FECHA_ACTUALIZA"   timestamptz   NOT NULL DEFAULT now(),
-    PRIMARY KEY ("FECHA", "ID_TAQUILLA")
-);
-
--- ============================================================
 -- INVENTARIO GENERAL: ingresos de manillas al parque (compras, ajustes).
 -- Las existencias = ingresos - vendidas (las ventas se descuentan solas).
 -- ============================================================

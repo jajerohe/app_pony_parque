@@ -1,12 +1,10 @@
-"""Ventas del día y liquidación de caja por taquilla.
+"""Ventas del día por taquilla.
 
 El operador registra cuántas manillas vendió de cada tarifa (como el cuadro
 «Caja general taquilla del día»). El valor sale de la tarifa vigente y queda
 guardado con la venta. Con eso:
   * el inventario del día se descuenta solo (FINAL = INICIAL - VENDIDAS),
-  * el inventario general se descuenta solo (existencias = ingresos - vendidas),
-  * la liquidación compara lo vendido con lo que entrega el cajero.
-Una caja cerrada ya no se puede modificar; el administrador puede reabrirla.
+  * el inventario general se descuenta solo (existencias = ingresos - vendidas).
 """
 
 from html import escape
@@ -17,10 +15,6 @@ import streamlit as st
 
 from database import Database
 from usuarios import seccion
-
-MEDIOS_PAGO = [("EFECTIVO", "💵 Efectivo"), ("TARJETA", "💳 Tarjeta"),
-               ("TRANSFERENCIA", "🏦 Transferencia"), ("OTROS", "🧾 Otros")]
-
 
 # ============================================================
 # DATOS
@@ -84,22 +78,6 @@ def obtener_inventario_dia(fecha, id_taquilla):
     datos["VENDIDAS"] = datos["VENDIDAS"].astype(int)
     datos["FINAL"] = datos["INICIAL"].fillna(0).astype(int) - datos["VENDIDAS"]
     return datos
-
-
-@st.cache_data(ttl=60, show_spinner=False)
-def obtener_liquidacion(fecha, id_taquilla):
-    columnas = [c for c, _ in MEDIOS_PAGO] + ["OBSERVACION", "CERRADA", "USUARIO_ACTUALIZA", "FECHA_ACTUALIZA"]
-    datos = _consultar(
-        f'''SELECT {", ".join(f'"{c}"' for c in columnas)} FROM public."LIQUIDACIONES"
-            WHERE "FECHA" = %s AND "ID_TAQUILLA" = %s''',
-        (fecha, id_taquilla), columnas,
-    )
-    if datos.empty:
-        return None
-    fila = datos.iloc[0].to_dict()
-    for c, _ in MEDIOS_PAGO:
-        fila[c] = float(fila[c])
-    return fila
 
 
 def pesos(valor):
@@ -201,44 +179,6 @@ def _guardar_ventas(fecha, id_taquilla, editada, usuario_actual):
         db.cerrar()
 
 
-def _guardar_liquidacion(fecha, id_taquilla, valores, observacion, total_ventas, cerrar, usuario_actual):
-    columnas = [c for c, _ in MEDIOS_PAGO]
-    db = Database()
-    try:
-        db.conectar()
-        db.execute(
-            f'''INSERT INTO public."LIQUIDACIONES"
-                    ("FECHA","ID_TAQUILLA",{",".join(f'"{c}"' for c in columnas)},
-                     "TOTAL_VENTAS","OBSERVACION","CERRADA","USUARIO_ACTUALIZA")
-                VALUES (%s,%s,{",".join(["%s"] * len(columnas))},%s,%s,%s,%s)
-                ON CONFLICT ("FECHA","ID_TAQUILLA") DO UPDATE SET
-                    {", ".join(f'"{c}"=EXCLUDED."{c}"' for c in columnas)},
-                    "TOTAL_VENTAS"=EXCLUDED."TOTAL_VENTAS", "OBSERVACION"=EXCLUDED."OBSERVACION",
-                    "CERRADA"=EXCLUDED."CERRADA", "USUARIO_ACTUALIZA"=EXCLUDED."USUARIO_ACTUALIZA",
-                    "FECHA_ACTUALIZA"=now()''',
-            (fecha, id_taquilla, *[valores[c] for c in columnas], total_ventas, observacion or None,
-             cerrar, usuario_actual),
-        )
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.cerrar()
-
-
-def _reabrir(fecha, id_taquilla, usuario_actual):
-    db = Database()
-    try:
-        db.conectar()
-        db.execute('''UPDATE public."LIQUIDACIONES" SET "CERRADA"=false, "USUARIO_ACTUALIZA"=%s,
-                      "FECHA_ACTUALIZA"=now() WHERE "FECHA"=%s AND "ID_TAQUILLA"=%s''',
-                   (usuario_actual, fecha, id_taquilla))
-        db.commit()
-    finally:
-        db.cerrar()
-
-
 def _notificar(mensaje, tipo="success"):
     st.cache_data.clear()
     # Dos «$» en un mensaje se interpretan como fórmula matemática; se escapan.
@@ -277,22 +217,18 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
     try:
         planilla = obtener_planilla_ventas(fecha, id_taquilla)
         inventario = obtener_inventario_dia(fecha, id_taquilla)
-        liquidacion = obtener_liquidacion(fecha, id_taquilla)
     except psycopg.errors.UndefinedTable:
         st.error("❌ Falta crear las tablas de ventas: ejecute `sql/schema.sql` en Neon → SQL Editor.")
         return
 
-    cerrada = bool(liquidacion and liquidacion["CERRADA"])
     total_ventas = float((planilla["CANTIDAD"].fillna(0) * planilla["VALOR"]).sum())
     manillas_vendidas = int(planilla["CANTIDAD"].fillna(0).sum())
-    recibido = sum(liquidacion[c] for c, _ in MEDIOS_PAGO) if liquidacion else 0.0
 
     with st.container(horizontal=True, gap="medium"):
-        st.metric("Estado de caja", "🔒 Cerrada" if cerrada else "🟢 Abierta", border=True)
         st.metric("Manillas vendidas", manillas_vendidas, border=True)
         st.metric("Total ventas", pesos(total_ventas), border=True)
-        st.metric("Diferencia de caja", pesos(recibido - total_ventas) if liquidacion else "—", border=True,
-                  help="Lo recibido (efectivo, tarjeta, transferencia, otros) menos el total vendido.")
+        st.metric("Manillas disponibles", int(inventario["FINAL"].sum()) if not inventario.empty else 0,
+                  border=True, help="Inventario final del día: inicial menos vendidas.")
 
     if inventario["INICIAL"].isna().all():
         st.warning(f"⚠️ {nombres[id_taquilla]} no tiene inventario inicial el {fecha:%d/%m/%Y}. "
@@ -302,20 +238,17 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
         st.info("Esta taquilla no tiene tarifas vigentes en la fecha. Créelas en Administración → Tarifas.")
         return
 
-    tab_ventas, tab_liq, tab_inv = st.tabs(["🧾 Ventas del día", "💵 Liquidación", "📦 Inventario del día"])
+    tab_ventas, tab_inv = st.tabs(["🧾 Ventas del día", "📦 Inventario del día"])
 
     # ---------------- Ventas ----------------
     with tab_ventas:
-        if cerrada:
-            st.info("🔒 La caja de este día está cerrada; las ventas no se pueden modificar."
-                    + (" Puede reabrirla en la pestaña Liquidación." if es_administrador else ""))
         izquierda, derecha = st.columns([1.15, 1], gap="large")
         with izquierda:
             seccion("✍️ Registrar cantidades", "Digite cuántas manillas vendió de cada tarifa y guarde.")
             editor = planilla.assign(CANT=planilla["CANTIDAD"], VALOR_TXT=planilla["VALOR"].map(pesos))
             with st.form(f"form_ventas_{fecha}_{id_taquilla}", border=False):
                 editada = st.data_editor(
-                    editor, hide_index=True, width="stretch", disabled=cerrada,
+                    editor, hide_index=True, width="stretch",
                     height=38 + 35 * len(editor), placeholder="",
                     column_order=["CATEGORIA", "MANILLA", "TIPO", "VALOR_TXT", "CANT"],
                     column_config={
@@ -329,7 +262,7 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
                 )
                 with st.container(key="acciones_ventas", horizontal=True, horizontal_alignment="right"):
                     guardar = st.form_submit_button("", icon=":material/save:", key="btn_ok_ventas",
-                                                    disabled=cerrada, help="Guardar ventas")
+                                                    help="Guardar ventas")
         with derecha:
             st.markdown(cuadro_caja_html(planilla), unsafe_allow_html=True)
 
@@ -350,58 +283,6 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
                     total = float((editada["CANT"].fillna(0) * editada["VALOR"]).sum())
                     _notificar(f"✅ Ventas de {nombres[id_taquilla]} guardadas: "
                                f"{int(editada['CANT'].fillna(0).sum())} manillas por {pesos(total)}.")
-
-    # ---------------- Liquidación ----------------
-    with tab_liq:
-        seccion("💵 Liquidación de caja",
-                "Registre lo que entrega el cajero por cada medio de pago. Al cerrar la caja, "
-                "las ventas del día quedan bloqueadas.")
-        actuales = liquidacion or {c: 0.0 for c, _ in MEDIOS_PAGO}
-        with st.form(f"form_liq_{fecha}_{id_taquilla}_{cerrada}"):
-            columnas = st.columns(len(MEDIOS_PAGO))
-            valores = {}
-            for col, (campo, etiqueta) in zip(columnas, MEDIOS_PAGO):
-                with col:
-                    valores[campo] = st.number_input(etiqueta, min_value=0.0, step=1000.0, format="%.0f",
-                                                     value=float(actuales[campo]), disabled=cerrada,
-                                                     key=f"liq_{campo}_{fecha}_{id_taquilla}_{cerrada}")
-            observacion = st.text_area("Observación", value=(liquidacion or {}).get("OBSERVACION") or "",
-                                       disabled=cerrada, height=70, key=f"liq_obs_{fecha}_{id_taquilla}_{cerrada}")
-            with st.container(key="acciones_liq", horizontal=True, horizontal_alignment="right", gap="small"):
-                guardar_liq = st.form_submit_button("", icon=":material/save:", key="btn_info_liq_guardar",
-                                                    disabled=cerrada, help="Guardar liquidación")
-                cerrar_liq = st.form_submit_button("", icon=":material/lock:", key="btn_warn_liq_cerrar",
-                                                   disabled=cerrada, help="Guardar y cerrar la caja del día")
-
-        recibido_txt = sum(valores.values())
-        diferencia = recibido_txt - total_ventas
-        estado = "✅ Cuadrada" if abs(diferencia) < 1 else ("🟡 Sobrante" if diferencia > 0 else "🔴 Faltante")
-        resumen = pd.DataFrame({
-            "CONCEPTO": ["Total ventas del día"] + [e for _, e in MEDIOS_PAGO] + ["Total recibido", "Diferencia"],
-            "VALOR": [pesos(total_ventas)] + [pesos(valores[c]) for c, _ in MEDIOS_PAGO]
-                     + [pesos(recibido_txt), f"{pesos(diferencia)}  {estado}"],
-        })
-        st.dataframe(resumen, hide_index=True, width="stretch",
-                     column_config={"VALOR": st.column_config.TextColumn(alignment="right")})
-        if liquidacion:
-            st.caption(f"Última actualización: {liquidacion['USUARIO_ACTUALIZA'] or '—'} · "
-                       f"{pd.Timestamp(liquidacion['FECHA_ACTUALIZA']).tz_convert('America/Bogota'):%d/%m/%Y %H:%M}")
-
-        if cerrada and es_administrador:
-            if st.button("Reabrir caja", icon=":material/lock_open:", key="btn_reabrir_caja"):
-                _reabrir(fecha, id_taquilla, usuario_actual)
-                _notificar(f"🔓 Caja de {nombres[id_taquilla]} del {fecha:%d/%m/%Y} reabierta.", "info")
-
-        if guardar_liq or cerrar_liq:
-            try:
-                _guardar_liquidacion(fecha, id_taquilla, valores, observacion, total_ventas,
-                                     bool(cerrar_liq), usuario_actual)
-            except Exception as e:
-                st.error(f"❌ No fue posible guardar la liquidación: {e}")
-            else:
-                _notificar(f"{'🔒 Caja cerrada' if cerrar_liq else '✅ Liquidación guardada'}: "
-                           f"vendido {pesos(total_ventas)}, recibido {pesos(recibido_txt)}, "
-                           f"diferencia {pesos(diferencia)} ({estado[2:]}).")
 
     # ---------------- Inventario ----------------
     with tab_inv:
