@@ -93,3 +93,16 @@ CREATE TABLE IF NOT EXISTS public."TAQUILLAS_MANILLAS" (
     "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY ("ID_TAQUILLA", "ID_MANILLA")
 );
+
+-- ============================================================
+-- INVENTARIO INICIAL DE MANILLAS POR TAQUILLA Y FECHA
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."INVENTARIO_INICIAL" (
+    "FECHA"             date    NOT NULL,
+    "ID_TAQUILLA"       integer NOT NULL REFERENCES public."TAQUILLAS" ("ID_TAQUILLA"),
+    "ID_MANILLA"        integer NOT NULL REFERENCES public."MANILLAS" ("ID_MANILLA"),
+    "CANTIDAD"          integer NOT NULL CHECK ("CANTIDAD" >= 0),
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY ("FECHA", "ID_TAQUILLA", "ID_MANILLA")
+);

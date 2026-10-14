@@ -8,6 +8,7 @@ import streamlit as st
 
 from auth import iniciar_sesion, cerrar_sesion
 from inicio import mostrar_inicio
+from inventario_inicial import mostrar_modulo_inventario_inicial
 from manillas import mostrar_modulo_manillas
 from taquillas import mostrar_modulo_taquillas
 from usuarios import mostrar_mi_cuenta, mostrar_modulo_usuarios
@@ -249,12 +250,12 @@ section[data-testid="stSidebar"]>div{padding:.8rem .8rem 1rem!important}
 .pp-side-logo{width:150px;max-width:100%;height:auto;filter:drop-shadow(0 6px 10px rgba(74,36,18,.18))}
 .pp-side-title{display:inline-block;color:var(--amarillo);background:var(--dark);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin-top:6px;padding:4px 10px;border-radius:4px}
 .pp-menu-section{color:#a0663a;font-size:10px;font-weight:800;text-transform:uppercase;margin:16px 7px 6px;letter-spacing:.6px}
-.st-key-pp_menu div[data-testid="stButton"]>button,.st-key-pp_menu_admin div[data-testid="stButton"]>button{justify-content:flex-start!important;height:auto!important;min-height:38px!important;padding:9px!important;margin:0!important;border:none!important;border-radius:7px!important;background:transparent!important;color:#5a3a24!important;font-size:12px!important;font-weight:600!important;box-shadow:none!important}
-.st-key-pp_menu div[data-testid="stButton"]>button:hover,.st-key-pp_menu_admin div[data-testid="stButton"]>button:hover{background:#fff3df!important}
-.st-key-pp_menu div[data-testid="stButton"]>button[kind="primary"],.st-key-pp_menu_admin div[data-testid="stButton"]>button[kind="primary"]{color:#fff!important;background:linear-gradient(90deg,#6b3416,#8e4a1e)!important;box-shadow:inset 4px 0 0 var(--amarillo),0 3px 10px rgba(107,52,22,.18)!important}
-.st-key-pp_menu div[data-testid="stButton"]>button>div,.st-key-pp_menu_admin div[data-testid="stButton"]>button>div{justify-content:flex-start!important;width:100%!important}
-.st-key-pp_menu div[data-testid="stButton"]>button p,.st-key-pp_menu_admin div[data-testid="stButton"]>button p{font-size:12px!important;font-weight:600!important;text-align:left!important}
-.st-key-pp_menu,.st-key-pp_menu_admin{gap:3px!important}
+.st-key-pp_menu div[data-testid="stButton"]>button,.st-key-pp_menu_admin div[data-testid="stButton"]>button,.st-key-pp_menu_operacion div[data-testid="stButton"]>button{justify-content:flex-start!important;height:auto!important;min-height:38px!important;padding:9px!important;margin:0!important;border:none!important;border-radius:7px!important;background:transparent!important;color:#5a3a24!important;font-size:12px!important;font-weight:600!important;box-shadow:none!important}
+.st-key-pp_menu div[data-testid="stButton"]>button:hover,.st-key-pp_menu_admin div[data-testid="stButton"]>button:hover,.st-key-pp_menu_operacion div[data-testid="stButton"]>button:hover{background:#fff3df!important}
+.st-key-pp_menu div[data-testid="stButton"]>button[kind="primary"],.st-key-pp_menu_admin div[data-testid="stButton"]>button[kind="primary"],.st-key-pp_menu_operacion div[data-testid="stButton"]>button[kind="primary"]{color:#fff!important;background:linear-gradient(90deg,#6b3416,#8e4a1e)!important;box-shadow:inset 4px 0 0 var(--amarillo),0 3px 10px rgba(107,52,22,.18)!important}
+.st-key-pp_menu div[data-testid="stButton"]>button>div,.st-key-pp_menu_admin div[data-testid="stButton"]>button>div,.st-key-pp_menu_operacion div[data-testid="stButton"]>button>div{justify-content:flex-start!important;width:100%!important}
+.st-key-pp_menu div[data-testid="stButton"]>button p,.st-key-pp_menu_admin div[data-testid="stButton"]>button p,.st-key-pp_menu_operacion div[data-testid="stButton"]>button p{font-size:12px!important;font-weight:600!important;text-align:left!important}
+.st-key-pp_menu,.st-key-pp_menu_admin,.st-key-pp_menu_operacion{gap:3px!important}
 .pp-topbar{background:#fff;border:1px solid #f1d6a8;border-radius:8px;min-height:64px;padding:9px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:inset 0 4px 0 var(--acento);margin-bottom:12px}
 .pp-top-title{color:var(--dark);font-size:18px;font-weight:800}.pp-top-subtitle{color:var(--muted);font-size:10px;margin-top:2px}.pp-user-pill{background:#fff6e2;border:1px solid #f5d79a;color:var(--dark);border-radius:20px;padding:7px 12px;font-size:10px;font-weight:700}.pp-top-actions{display:flex;align-items:center;gap:10px}.pp-logout{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#C3C5C6,#403833);box-shadow:0 2px 6px rgba(64,56,51,.3);transition:transform .15s,box-shadow .15s;text-decoration:none!important}.pp-logout:hover{transform:scale(1.08);box-shadow:0 3px 10px rgba(64,56,51,.4)}
 .pp-section-title{color:var(--dark);font-size:15px;font-weight:800;margin:2px 0 5px}.pp-section-caption{color:var(--muted);font-size:11px;margin-bottom:8px}
@@ -279,7 +280,7 @@ div[role="dialog"] div[data-testid="stForm"]{border-color:var(--border)!importan
 [class*="st-key-acciones_"] div[data-testid="stButton"] button:hover,[class*="st-key-acciones_"] div[data-testid="stFormSubmitButton"] button:hover{transform:scale(1.08);box-shadow:0 3px 10px rgba(74,36,18,.35)!important}
 [class*="st-key-acciones_"] div[data-testid="stButton"] button:disabled,[class*="st-key-acciones_"] div[data-testid="stFormSubmitButton"] button:disabled{opacity:.35;transform:none;box-shadow:none!important}
 [class*="st-key-acciones_"] div[data-testid="stButton"] button span,[class*="st-key-acciones_"] div[data-testid="stFormSubmitButton"] button span{color:#fff!important;font-size:20px!important;margin:0!important}
-.st-key-btn_usr_nuevo div[data-testid="stButton"] button,.st-key-btn_taq_nuevo div[data-testid="stButton"] button,.st-key-btn_man_nuevo div[data-testid="stButton"] button,[class*="st-key-btn_ok_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#9ccc3c,#4e7a16)!important}
+.st-key-btn_usr_nuevo div[data-testid="stButton"] button,.st-key-btn_taq_nuevo div[data-testid="stButton"] button,.st-key-btn_man_nuevo div[data-testid="stButton"] button,[class*="st-key-btn_ok_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_ok_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#9ccc3c,#4e7a16)!important}
 .st-key-btn_usr_editar div[data-testid="stButton"] button,.st-key-btn_taq_editar div[data-testid="stButton"] button,.st-key-btn_man_editar div[data-testid="stButton"] button,[class*="st-key-btn_info_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#5bb8e6,#1f6f9e)!important}
 .st-key-btn_usr_estado div[data-testid="stButton"] button,.st-key-btn_taq_estado div[data-testid="stButton"] button,.st-key-btn_man_estado div[data-testid="stButton"] button,[class*="st-key-btn_warn_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#ffc629,#f08a1c)!important}
 .st-key-btn_usr_clave div[data-testid="stButton"] button,.st-key-btn_taq_asignar div[data-testid="stButton"] button,[class*="st-key-btn_neutral_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_cancel_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#C3C5C6,#403833)!important}
@@ -317,6 +318,9 @@ with st.sidebar:
         ("mi_cuenta", "🔑  Mi cuenta"),
     ])
 
+    st.markdown('<div class="pp-menu-section">Operación</div>', unsafe_allow_html=True)
+    mostrar_menu("pp_menu_operacion", [("inventario_inicial", "📦  Inventario inicial")])
+
     if es_administrador:
         st.markdown('<div class="pp-menu-section">Administración</div>', unsafe_allow_html=True)
         mostrar_menu("pp_menu_admin", [("usuarios", "👥  Usuarios"), ("taquillas", "🎟️  Taquillas"), ("manillas", "🎫  Manillas")])
@@ -330,6 +334,7 @@ TITULOS_PAGINA = {
     "usuarios": "Usuarios",
     "taquillas": "Taquillas",
     "manillas": "Manillas",
+    "inventario_inicial": "Inventario Inicial",
 }
 
 st.markdown(f"""
@@ -351,6 +356,8 @@ try:
         mostrar_modulo_taquillas(usuario_actual)
     elif pagina_actual == "manillas" and es_administrador:
         mostrar_modulo_manillas(usuario_actual)
+    elif pagina_actual == "inventario_inicial":
+        mostrar_modulo_inventario_inicial(usuario_actual, es_administrador, hoy)
     elif pagina_actual == "mi_cuenta":
         mostrar_mi_cuenta(usuario_actual)
     else:
