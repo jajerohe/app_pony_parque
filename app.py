@@ -32,7 +32,8 @@ def logo_base64():
 st.set_page_config(
     page_title="Pony Parque",
     page_icon=str(CARPETA_IMAGENES / "icono.png"),
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 # ============================================================
@@ -40,10 +41,19 @@ st.set_page_config(
 # ============================================================
 st.markdown("""
 <style>
-header[data-testid="stHeader"],
-[data-testid="stToolbar"],
+/* La barra superior queda invisible, pero sin display:none, porque ahí vive
+   el botón que despliega el menú lateral (ver "MENÚ LATERAL DESPLEGABLE"). */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    height: 0 !important;
+    min-height: 0 !important;
+}
 [data-testid="stDecoration"] {
     display: none !important;
+}
+/* visibility (y no display) para que el botón del menú, que está dentro de
+   la barra de herramientas, pueda seguir visible. */
+[data-testid="stToolbar"] {
     visibility: hidden !important;
     height: 0 !important;
     min-height: 0 !important;
@@ -252,7 +262,8 @@ st.markdown("""
 html,body,[data-testid="stAppViewContainer"]{background:var(--bg)!important}
 [data-testid="stAppViewContainer"]>.main{background:var(--bg)!important}
 .block-container{padding:1.05rem 1.45rem 2rem!important;max-width:100%!important}
-section[data-testid="stSidebar"]{background:#fff!important;border-right:3px solid var(--acento)!important;min-width:235px!important;width:235px!important}
+section[data-testid="stSidebar"]{background:#fff!important;border-right:3px solid var(--acento)!important}
+section[data-testid="stSidebar"][aria-expanded="true"]{min-width:235px!important;width:235px!important}
 section[data-testid="stSidebar"]>div{padding:.8rem .8rem 1rem!important}
 .pp-side-brand{padding:0 7px 12px;border-bottom:1px solid #f3e6d3;margin-bottom:10px;text-align:center}
 .pp-side-logo{width:150px;max-width:100%;height:auto;filter:drop-shadow(0 6px 10px rgba(74,36,18,.18))}
@@ -293,9 +304,53 @@ div[role="dialog"] div[data-testid="stForm"]{border-color:var(--border)!importan
 .st-key-btn_usr_estado div[data-testid="stButton"] button,.st-key-btn_taq_estado div[data-testid="stButton"] button,.st-key-btn_man_estado div[data-testid="stButton"] button,.st-key-btn_tar_estado div[data-testid="stButton"] button,.st-key-btn_cat_estado div[data-testid="stButton"] button,.st-key-btn_tip_estado div[data-testid="stButton"] button,[class*="st-key-btn_warn_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_warn_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#ffc629,#f08a1c)!important}
 .st-key-btn_usr_clave div[data-testid="stButton"] button,.st-key-btn_taq_asignar div[data-testid="stButton"] button,.st-key-btn_tar_importar div[data-testid="stButton"] button,[class*="st-key-btn_neutral_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_cancel_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_cancel_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#C3C5C6,#403833)!important}
 .st-key-btn_usr_eliminar div[data-testid="stButton"] button,.st-key-btn_taq_eliminar div[data-testid="stButton"] button,.st-key-btn_man_eliminar div[data-testid="stButton"] button,.st-key-btn_tar_eliminar div[data-testid="stButton"] button,.st-key-btn_cat_eliminar div[data-testid="stButton"] button,.st-key-btn_tip_eliminar div[data-testid="stButton"] button,[class*="st-key-btn_danger_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_danger_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#e5533d,#8e1c1c)!important}
-@media(max-width:900px){.block-container{padding:.7rem .75rem 1.5rem!important}section[data-testid="stSidebar"]{min-width:200px!important;width:200px!important}.pp-topbar{min-height:58px}}
+@media(max-width:900px){.block-container{padding:.7rem .75rem 1.5rem!important}section[data-testid="stSidebar"][aria-expanded="true"]{min-width:200px!important;width:200px!important}.pp-topbar{min-height:58px}}
 </style>
 """, unsafe_allow_html=True)
+
+# ============================================================
+# MENÚ LATERAL DESPLEGABLE
+# ============================================================
+# El menú arranca cerrado y se abre con el botón ☰ de la esquina superior
+# izquierda. Se abre flotando sobre el contenido (no lo empuja ni lo
+# encoge) y se cierra al elegir una opción o al hacer clic fuera de él.
+st.markdown("""
+<style>
+[data-testid="stExpandSidebarButton"]{visibility:visible!important;position:fixed!important;top:29px;left:22px;z-index:1000002;width:40px!important;height:40px!important;border-radius:8px!important;background:linear-gradient(160deg,#f59e1b,#6b3416)!important;box-shadow:0 2px 6px rgba(74,36,18,.3)!important;display:flex!important;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s}
+[data-testid="stExpandSidebarButton"]:hover{transform:scale(1.06);box-shadow:0 3px 10px rgba(74,36,18,.4)!important}
+[data-testid="stExpandSidebarButton"] span{display:none!important}
+[data-testid="stExpandSidebarButton"]::before{content:"";width:18px;height:2px;border-radius:2px;background:#fff;box-shadow:0 -6px 0 #fff,0 6px 0 #fff}
+section[data-testid="stSidebar"]{position:fixed!important;top:0;left:0;height:100vh!important;z-index:1000001!important}
+section[data-testid="stSidebar"][aria-expanded="true"]{box-shadow:6px 0 24px rgba(74,36,18,.18)!important}
+[data-testid="stSidebarResizeHandle"]{display:none!important}
+[data-testid="stSidebarCollapseButton"]{display:flex!important}
+.pp-topbar:not(.pp-dialog-header){margin-left:52px}
+/* Los bloques que solo traen estilos o scripts no deben ocupar espacio */
+[data-testid="stMainBlockContainer"] div[data-testid="stElementContainer"]:has(style),
+[data-testid="stMainBlockContainer"] div[data-testid="stElementContainer"]:has(script){display:none}
+</style>
+""", unsafe_allow_html=True)
+st.html("""
+<script>
+(() => {
+    if (window.menuDesplegable) return;
+    window.menuDesplegable = true;
+    const cerrar = () => {
+        const menu = document.querySelector('section[data-testid="stSidebar"]');
+        const boton = document.querySelector('[data-testid="stSidebarCollapseButton"] button');
+        if (menu && menu.getAttribute("aria-expanded") === "true" && boton) boton.click();
+    };
+    document.addEventListener("click", (e) => {
+        const menu = document.querySelector('section[data-testid="stSidebar"]');
+        if (!menu || menu.getAttribute("aria-expanded") !== "true") return;
+        if (e.target.closest('[data-testid="stExpandSidebarButton"]')) return;
+        if (!menu.contains(e.target)) return cerrar();
+        // Opción del menú elegida: cerrar después de que Streamlit la reciba.
+        if (e.target.closest('[class*="st-key-pp_menu"] button')) setTimeout(cerrar, 150);
+    }, true);
+})();
+</script>
+""", unsafe_allow_javascript=True)
 
 # ============================================================
 # SIDEBAR
