@@ -58,3 +58,27 @@ CREATE TABLE IF NOT EXISTS public."TAQUILLAS" (
     "USUARIO_ACTUALIZA" text,
     "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now()
 );
+
+-- ============================================================
+-- MANILLAS (conceptos que se venden en taquilla)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."MANILLAS" (
+    "ID_MANILLA"        integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "NOMBRE"            text NOT NULL,
+    "DESCRIPCION"       text,
+    "ACTIVO"            boolean NOT NULL DEFAULT true,
+    "FECHA_CREACION"    timestamptz NOT NULL DEFAULT now(),
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "MANILLAS_NOMBRE" ON public."MANILLAS" (lower("NOMBRE"));
+
+INSERT INTO public."MANILLAS" ("NOMBRE")
+SELECT nombre FROM (VALUES
+    (1, 'Adulto'), (2, 'Adulto Mayor'), (3, 'Niño'), (4, 'Combo Básico'), (5, 'Combo Infantil'),
+    (6, 'Combo Junior'), (7, 'Pasaporte Full Vaquero'), (8, 'Paseo a caballo'), (9, 'Niño Cabrio'),
+    (10, 'Tiro al blanco'), (11, 'Paseo en tren'), (12, 'Tirolesa'), (13, 'Cuatrimoto')
+) AS m (orden, nombre)
+WHERE NOT EXISTS (SELECT 1 FROM public."MANILLAS")
+ORDER BY orden;
