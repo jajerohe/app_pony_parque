@@ -8,6 +8,7 @@ import streamlit as st
 
 from auth import iniciar_sesion, cerrar_sesion
 from inicio import mostrar_inicio
+from consolidado_inventario import mostrar_consolidado_inventario
 from inventario_inicial import mostrar_modulo_inventario_inicial
 from manillas import mostrar_modulo_manillas
 from taquillas import mostrar_modulo_taquillas
@@ -319,7 +320,10 @@ with st.sidebar:
     ])
 
     st.markdown('<div class="pp-menu-section">Operación</div>', unsafe_allow_html=True)
-    mostrar_menu("pp_menu_operacion", [("inventario_inicial", "📦  Inventario inicial")])
+    mostrar_menu("pp_menu_operacion", [
+        ("inventario_inicial", "📦  Inventario inicial"),
+        ("consolidado_inventario", "📊  Consolidado inventario"),
+    ])
 
     if es_administrador:
         st.markdown('<div class="pp-menu-section">Administración</div>', unsafe_allow_html=True)
@@ -335,6 +339,7 @@ TITULOS_PAGINA = {
     "taquillas": "Taquillas",
     "manillas": "Manillas",
     "inventario_inicial": "Inventario Inicial",
+    "consolidado_inventario": "Consolidado de Inventario",
 }
 
 st.markdown(f"""
@@ -358,6 +363,8 @@ try:
         mostrar_modulo_manillas(usuario_actual)
     elif pagina_actual == "inventario_inicial":
         mostrar_modulo_inventario_inicial(usuario_actual, es_administrador, hoy)
+    elif pagina_actual == "consolidado_inventario":
+        mostrar_consolidado_inventario(hoy)
     elif pagina_actual == "mi_cuenta":
         mostrar_mi_cuenta(usuario_actual)
     else:
