@@ -1,8 +1,7 @@
 """Consolidado diario del inventario: una planilla por taquilla, de solo lectura.
 
-Muestra para la fecha elegida el inventario inicial de cada taquilla, con las
-columnas VENDIDAS y FINAL que se llenarán cuando existan los módulos de ventas e
-inventario, y el total del día por concepto.
+Muestra para la fecha elegida, por taquilla, el inventario INICIAL, las VENDIDAS
+(del módulo de ventas) y el FINAL (inicial - vendidas), y el total del día por concepto.
 """
 
 from datetime import timedelta
@@ -30,23 +29,29 @@ def obtener_consolidado(fecha):
             '''SELECT t."ID_TAQUILLA", t."NOMBRE", t."UBICACION",
                       m."ID_MANILLA",
                       m."NOMBRE" || CASE WHEN m."ACTIVO" THEN '' ELSE ' (inactiva)' END,
-                      i."CANTIDAD", i."USUARIO_ACTUALIZA", i."FECHA_ACTUALIZA"
+                      i."CANTIDAD", i."USUARIO_ACTUALIZA", i."FECHA_ACTUALIZA",
+                      (SELECT SUM(v."CANTIDAD") FROM public."VENTAS" v
+                       WHERE v."FECHA" = %(f)s AND v."ID_TAQUILLA" = t."ID_TAQUILLA"
+                         AND v."ID_MANILLA" = m."ID_MANILLA")
                FROM public."TAQUILLAS" t
                CROSS JOIN public."MANILLAS" m
                LEFT JOIN public."TAQUILLAS_MANILLAS" a
                       ON a."ID_TAQUILLA" = t."ID_TAQUILLA" AND a."ID_MANILLA" = m."ID_MANILLA"
                LEFT JOIN public."INVENTARIO_INICIAL" i
                       ON i."ID_TAQUILLA" = t."ID_TAQUILLA" AND i."ID_MANILLA" = m."ID_MANILLA"
-                     AND i."FECHA" = %s
+                     AND i."FECHA" = %(f)s
                WHERE t."ACTIVO"
                  AND ((a."ID_MANILLA" IS NOT NULL AND m."ACTIVO") OR i."CANTIDAD" IS NOT NULL)
                ORDER BY t."ID_TAQUILLA", m."ID_MANILLA"''',
-            (fecha,)
+            {"f": fecha}
         )
-        return pd.DataFrame(db.fetchall(), columns=[
+        datos = pd.DataFrame(db.fetchall(), columns=[
             "ID_TAQUILLA", "TAQUILLA", "UBICACION", "ID_MANILLA", "CONCEPTO",
-            "INICIAL", "USUARIO", "ACTUALIZADO",
+            "INICIAL", "USUARIO", "ACTUALIZADO", "VENDIDAS",
         ])
+        # FINAL = INICIAL - VENDIDAS (solo donde hay inventario inicial).
+        datos["FINAL"] = datos["INICIAL"] - datos["VENDIDAS"].fillna(0)
+        return datos
     finally:
         db.cerrar()
 
@@ -69,13 +74,15 @@ def _numero(valor):
 def _planilla_html(nombre, ubicacion, filas, inicializada, actualizado):
     """Planilla de una taquilla con el mismo orden de columnas del formato en papel."""
     cuerpo = "".join(
-        f'<tr><td class="pp-inv-num pp-inv-pend"></td>'
+        f'<tr><td class="pp-inv-num pp-inv-vend">{_numero(f["VENDIDAS"]) or 0}</td>'
         f'<td class="pp-inv-concepto">{escape(f["CONCEPTO"])}</td>'
         f'<td class="pp-inv-num pp-inv-cant">{_numero(f["INICIAL"])}</td>'
-        f'<td class="pp-inv-num pp-inv-pend"></td></tr>'
+        f'<td class="pp-inv-num pp-inv-cant">{_numero(f["FINAL"])}</td></tr>'
         for _, f in filas.iterrows()
     ) or '<tr><td colspan="4" class="pp-inv-vacio">Sin manillas asignadas</td></tr>'
     total = filas["INICIAL"].fillna(0).sum()
+    vendidas = filas["VENDIDAS"].fillna(0).sum()
+    final = filas["FINAL"].fillna(0).sum()
     estado = (
         f'<span class="pp-inv-badge pp-inv-ok">Inicializada</span>' if inicializada
         else '<span class="pp-inv-badge pp-inv-pendiente">Pendiente</span>'
@@ -87,8 +94,9 @@ def _planilla_html(nombre, ubicacion, filas, inicializada, actualizado):
 <table class="pp-inv-tabla">
 <thead><tr><th>VENDIDAS</th><th>CONCEPTO</th><th>INICIAL</th><th>FINAL</th></tr></thead>
 <tbody>{cuerpo}</tbody>
-<tfoot><tr><td></td><td class="pp-inv-total-label">TOTAL MANILLAS</td>
-<td class="pp-inv-num">{_numero(total) if inicializada else ""}</td><td></td></tr></tfoot>
+<tfoot><tr><td class="pp-inv-num">{_numero(vendidas) or 0}</td><td class="pp-inv-total-label">TOTAL MANILLAS</td>
+<td class="pp-inv-num">{_numero(total) if inicializada else ""}</td>
+<td class="pp-inv-num">{_numero(final) if inicializada else ""}</td></tr></tfoot>
 </table>{pie}</div>'''
 
 
@@ -106,6 +114,7 @@ ESTILO = """<style>
 .pp-inv-num{text-align:center;font-variant-numeric:tabular-nums}
 .pp-inv-cant{background:#faf6ef;font-weight:600}
 .pp-inv-pend{color:#b9a796}
+.pp-inv-vend{font-weight:800}
 .pp-inv-pend:empty::after{content:"—"}
 .pp-inv-tabla tfoot td{border-top:2px solid var(--dark);border-bottom:none;font-weight:800;padding:8px}
 .pp-inv-total-label{text-align:right}
@@ -148,12 +157,13 @@ def mostrar_consolidado_inventario(hoy):
     with st.container(horizontal=True, gap="medium"):
         st.metric("Taquillas inicializadas", f"{len(inicializadas)} de {len(taquillas)}", border=True)
         st.metric("Total manillas inicial", _numero(total_inicial) or "0", border=True)
-        st.metric("Vendidas", "—", help="Se calculará con el módulo de ventas.", border=True)
-        st.metric("Final", "—", help="Se calculará con el módulo de inventario.", border=True)
+        st.metric("Vendidas", _numero(datos["VENDIDAS"].fillna(0).sum()) or "0", border=True)
+        st.metric("Final", _numero(datos["FINAL"].fillna(0).sum()) or "0", border=True,
+                  help="Inicial menos vendidas, de las taquillas inicializadas.")
 
     st.markdown(ESTILO, unsafe_allow_html=True)
     seccion(f"🎟️ Planillas del {fecha.strftime('%d/%m/%Y')}",
-            "Solo lectura. El inventario inicial se carga en Operación → Inventario inicial.")
+            "Solo lectura. El inicial se carga en Operación → Inventario inicial y las vendidas en Operación → Ventas del día.")
 
     columnas = st.columns(2, gap="medium")
     for n, (_, taq) in enumerate(taquillas.iterrows()):

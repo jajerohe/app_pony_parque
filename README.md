@@ -8,10 +8,13 @@ Sistema del **Pony Parque (Hotel Mesa de los Santos)** en Streamlit, con la base
 |---|---|---|
 | **Inicio** | Todos | Bienvenida y accesos a los módulos. |
 | **Mi cuenta** | Todos | Cambiar la propia contraseña. |
+| **Ventas del día** | Todos | Por fecha y taquilla, cantidad vendida de cada tarifa vigente, con el cuadro «Caja general taquilla del día» (categoría, manilla, tipo, cant, valor, total y subtotales). No deja vender más que el inventario inicial. Pestaña **Liquidación**: efectivo, tarjeta, transferencia y otros contra el total vendido (sobrante/faltante) y cierre de caja; el administrador puede reabrirla. Pestaña **Inventario del día**: inicial, vendidas y final. |
 | **Consolidado inventario** | Todos | Solo lectura. Por día, una planilla por taquilla (VENDIDAS, CONCEPTO, INICIAL, FINAL), indicadores del día y el total por concepto de todas las taquillas. Vendidas y Final se llenarán con los módulos de ventas e inventario. |
 | **Inventario inicial** | Todos | Por fecha y taquilla, cargar la cantidad inicial de cada manilla asignada. Muestra qué taquillas ya están inicializadas y su total. El operador solo carga el día de hoy; el administrador puede corregir otras fechas. |
 | **Taquillas** | Administrador | Igual que Usuarios: buscar, seleccionar y crear, editar, activar o desactivar y eliminar taquillas (el ID se genera solo; nombre y ubicación). Con el botón **Asignar manillas** se marcan las manillas que vende cada taquilla. |
 | **Manillas** | Administrador | Igual que Taquillas, con nombre y descripción. Viene con los 13 conceptos del parque (Adulto, Adulto Mayor, Niño, combos, atracciones). |
+| **Balance** | Administrador | Por día o por mes: ventas, manillas, recibido en cajas, diferencia y cajas cerradas; detalle por taquilla, categoría, manilla y tipo; ventas por día del mes y el cuadro de caja general sumado. Descarga en CSV. |
+| **Inventario general** | Administrador | Ingresos de manillas al parque (compras o ajustes). EXISTENCIAS = INGRESOS − VENDIDAS de todas las taquillas, a cualquier fecha. |
 | **Tarifas** | Administrador | Valor de cada manilla por taquilla, categoría y tipo, con vigencia desde/hasta. Solo se pueden crear tarifas para manillas asignadas a la taquilla. Filtros por taquilla, manilla, categoría y vigencia. Se pueden cargar muchas desde Excel, CSV o pegando las filas copiadas. |
 | **Categorías** | Administrador | Nombres de las categorías de tarifa (Entradas, Combo, Atracciones). Igual que Manillas. |
 | **Tipos de tarifa** | Administrador | Nombres de los tipos de tarifa (Plena, Convenio 1, Descuento 50%, Cortesía...). Igual que Manillas. |

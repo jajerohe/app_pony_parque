@@ -169,3 +169,52 @@ END $$;
 -- Evita cargar dos veces exactamente la misma tarifa.
 CREATE UNIQUE INDEX IF NOT EXISTS "TARIFAS_UNICA"
     ON public."TARIFAS" ("ID_TAQUILLA", "ID_MANILLA", "ID_TIPO", "VALOR", "DESDE", "HASTA");
+
+-- ============================================================
+-- VENTAS DEL DÍA: cantidad vendida por taquilla y tarifa
+-- (el valor unitario se guarda para que un cambio de tarifa no altere lo vendido)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."VENTAS" (
+    "FECHA"             date          NOT NULL,
+    "ID_TAQUILLA"       integer       NOT NULL REFERENCES public."TAQUILLAS" ("ID_TAQUILLA"),
+    "ID_TARIFA"         integer       NOT NULL REFERENCES public."TARIFAS" ("ID_TARIFA"),
+    "ID_MANILLA"        integer       NOT NULL REFERENCES public."MANILLAS" ("ID_MANILLA"),
+    "CANTIDAD"          integer       NOT NULL CHECK ("CANTIDAD" > 0),
+    "VALOR_UNITARIO"    numeric(12,2) NOT NULL CHECK ("VALOR_UNITARIO" >= 0),
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz   NOT NULL DEFAULT now(),
+    PRIMARY KEY ("FECHA", "ID_TAQUILLA", "ID_TARIFA")
+);
+CREATE INDEX IF NOT EXISTS "VENTAS_MANILLA" ON public."VENTAS" ("FECHA", "ID_TAQUILLA", "ID_MANILLA");
+
+-- ============================================================
+-- LIQUIDACIÓN (CIERRE DE CAJA) POR TAQUILLA Y FECHA
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."LIQUIDACIONES" (
+    "FECHA"             date          NOT NULL,
+    "ID_TAQUILLA"       integer       NOT NULL REFERENCES public."TAQUILLAS" ("ID_TAQUILLA"),
+    "EFECTIVO"          numeric(12,2) NOT NULL DEFAULT 0 CHECK ("EFECTIVO" >= 0),
+    "TARJETA"           numeric(12,2) NOT NULL DEFAULT 0 CHECK ("TARJETA" >= 0),
+    "TRANSFERENCIA"     numeric(12,2) NOT NULL DEFAULT 0 CHECK ("TRANSFERENCIA" >= 0),
+    "OTROS"             numeric(12,2) NOT NULL DEFAULT 0 CHECK ("OTROS" >= 0),
+    "TOTAL_VENTAS"      numeric(12,2) NOT NULL DEFAULT 0,
+    "OBSERVACION"       text,
+    "CERRADA"           boolean       NOT NULL DEFAULT false,
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz   NOT NULL DEFAULT now(),
+    PRIMARY KEY ("FECHA", "ID_TAQUILLA")
+);
+
+-- ============================================================
+-- INVENTARIO GENERAL: ingresos de manillas al parque (compras, ajustes).
+-- Las existencias = ingresos - vendidas (las ventas se descuentan solas).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."INVENTARIO_GENERAL" (
+    "ID_MOVIMIENTO"     integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "FECHA"             date        NOT NULL,
+    "ID_MANILLA"        integer     NOT NULL REFERENCES public."MANILLAS" ("ID_MANILLA"),
+    "CANTIDAD"          integer     NOT NULL CHECK ("CANTIDAD" <> 0),
+    "OBSERVACION"       text,
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now()
+);
