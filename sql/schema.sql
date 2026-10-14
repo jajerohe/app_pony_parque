@@ -106,3 +106,56 @@ CREATE TABLE IF NOT EXISTS public."INVENTARIO_INICIAL" (
     "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY ("FECHA", "ID_TAQUILLA", "ID_MANILLA")
 );
+
+-- ============================================================
+-- CATEGORÍAS Y TIPOS DE TARIFA
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."CATEGORIAS" (
+    "ID_CATEGORIA"      integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "NOMBRE"            text        NOT NULL,
+    "DESCRIPCION"       text,
+    "ACTIVO"            boolean     NOT NULL DEFAULT true,
+    "FECHA_CREACION"    timestamptz NOT NULL DEFAULT now(),
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "CATEGORIAS_NOMBRE" ON public."CATEGORIAS" (lower("NOMBRE"));
+INSERT INTO public."CATEGORIAS" ("NOMBRE")
+SELECT n FROM unnest(ARRAY['Entradas','Combo','Atracciones']) AS n
+WHERE NOT EXISTS (SELECT 1 FROM public."CATEGORIAS");
+
+CREATE TABLE IF NOT EXISTS public."TIPOS_TARIFA" (
+    "ID_TIPO"           integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "NOMBRE"            text        NOT NULL,
+    "DESCRIPCION"       text,
+    "ACTIVO"            boolean     NOT NULL DEFAULT true,
+    "FECHA_CREACION"    timestamptz NOT NULL DEFAULT now(),
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "TIPOS_TARIFA_NOMBRE" ON public."TIPOS_TARIFA" (lower("NOMBRE"));
+INSERT INTO public."TIPOS_TARIFA" ("NOMBRE")
+SELECT n FROM unnest(ARRAY['Plena','Pleno','Convenio 1','Convenio 2','Descuento 50%','Cortesía']) AS n
+WHERE NOT EXISTS (SELECT 1 FROM public."TIPOS_TARIFA");
+
+-- ============================================================
+-- TARIFAS POR TAQUILLA, MANILLA Y TIPO, CON VIGENCIA
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."TARIFAS" (
+    "ID_TARIFA"         integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "ID_CATEGORIA"      integer       NOT NULL REFERENCES public."CATEGORIAS" ("ID_CATEGORIA"),
+    "ID_TAQUILLA"       integer       NOT NULL REFERENCES public."TAQUILLAS" ("ID_TAQUILLA"),
+    "ID_MANILLA"        integer       NOT NULL REFERENCES public."MANILLAS" ("ID_MANILLA"),
+    "ID_TIPO"           integer       NOT NULL REFERENCES public."TIPOS_TARIFA" ("ID_TIPO"),
+    "VALOR"             numeric(12,2) NOT NULL CHECK ("VALOR" >= 0),
+    "DESDE"             date          NOT NULL,
+    "HASTA"             date          NOT NULL,
+    "ACTIVO"            boolean       NOT NULL DEFAULT true,
+    "FECHA_CREACION"    timestamptz   NOT NULL DEFAULT now(),
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz   NOT NULL DEFAULT now(),
+    CHECK ("HASTA" >= "DESDE")
+);
+-- Evita cargar dos veces exactamente la misma tarifa.
+CREATE UNIQUE INDEX IF NOT EXISTS "TARIFAS_UNICA"
+    ON public."TARIFAS" ("ID_TAQUILLA", "ID_MANILLA", "ID_TIPO", "VALOR", "DESDE", "HASTA");

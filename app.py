@@ -7,11 +7,14 @@ from zoneinfo import ZoneInfo
 import streamlit as st
 
 from auth import iniciar_sesion, cerrar_sesion
-from inicio import mostrar_inicio
+from categorias import mostrar_modulo_categorias
 from consolidado_inventario import mostrar_consolidado_inventario
+from inicio import mostrar_inicio
 from inventario_inicial import mostrar_modulo_inventario_inicial
 from manillas import mostrar_modulo_manillas
+from tarifas import mostrar_modulo_tarifas
 from taquillas import mostrar_modulo_taquillas
+from tipos_tarifa import mostrar_modulo_tipos_tarifa
 from usuarios import mostrar_mi_cuenta, mostrar_modulo_usuarios
 
 ZONA_HORARIA = ZoneInfo("America/Bogota")
@@ -229,7 +232,7 @@ nombre_actual = st.session_state.get("nombre_actual", "")
 # Perfil Operador: módulos de operación.
 es_administrador = str(perfil_actual or "").strip().lower() == "administrador"
 
-PAGINAS_ADMIN = {"usuarios", "taquillas", "manillas"}
+PAGINAS_ADMIN = {"usuarios", "taquillas", "manillas", "tarifas", "categorias", "tipos_tarifa"}
 if "pagina_actual" not in st.session_state or (
     st.session_state["pagina_actual"] in PAGINAS_ADMIN and not es_administrador
 ):
@@ -281,11 +284,11 @@ div[role="dialog"] div[data-testid="stForm"]{border-color:var(--border)!importan
 [class*="st-key-acciones_"] div[data-testid="stButton"] button:hover,[class*="st-key-acciones_"] div[data-testid="stFormSubmitButton"] button:hover{transform:scale(1.08);box-shadow:0 3px 10px rgba(74,36,18,.35)!important}
 [class*="st-key-acciones_"] div[data-testid="stButton"] button:disabled,[class*="st-key-acciones_"] div[data-testid="stFormSubmitButton"] button:disabled{opacity:.35;transform:none;box-shadow:none!important}
 [class*="st-key-acciones_"] div[data-testid="stButton"] button span,[class*="st-key-acciones_"] div[data-testid="stFormSubmitButton"] button span{color:#fff!important;font-size:20px!important;margin:0!important}
-.st-key-btn_usr_nuevo div[data-testid="stButton"] button,.st-key-btn_taq_nuevo div[data-testid="stButton"] button,.st-key-btn_man_nuevo div[data-testid="stButton"] button,[class*="st-key-btn_ok_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_ok_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#9ccc3c,#4e7a16)!important}
-.st-key-btn_usr_editar div[data-testid="stButton"] button,.st-key-btn_taq_editar div[data-testid="stButton"] button,.st-key-btn_man_editar div[data-testid="stButton"] button,[class*="st-key-btn_info_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#5bb8e6,#1f6f9e)!important}
-.st-key-btn_usr_estado div[data-testid="stButton"] button,.st-key-btn_taq_estado div[data-testid="stButton"] button,.st-key-btn_man_estado div[data-testid="stButton"] button,[class*="st-key-btn_warn_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#ffc629,#f08a1c)!important}
-.st-key-btn_usr_clave div[data-testid="stButton"] button,.st-key-btn_taq_asignar div[data-testid="stButton"] button,[class*="st-key-btn_neutral_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_cancel_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#C3C5C6,#403833)!important}
-.st-key-btn_usr_eliminar div[data-testid="stButton"] button,.st-key-btn_taq_eliminar div[data-testid="stButton"] button,.st-key-btn_man_eliminar div[data-testid="stButton"] button,[class*="st-key-btn_danger_"] div[data-testid="stFormSubmitButton"] button{background:linear-gradient(160deg,#e5533d,#8e1c1c)!important}
+.st-key-btn_usr_nuevo div[data-testid="stButton"] button,.st-key-btn_taq_nuevo div[data-testid="stButton"] button,.st-key-btn_man_nuevo div[data-testid="stButton"] button,.st-key-btn_tar_nuevo div[data-testid="stButton"] button,.st-key-btn_cat_nuevo div[data-testid="stButton"] button,.st-key-btn_tip_nuevo div[data-testid="stButton"] button,[class*="st-key-btn_ok_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_ok_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#9ccc3c,#4e7a16)!important}
+.st-key-btn_usr_editar div[data-testid="stButton"] button,.st-key-btn_taq_editar div[data-testid="stButton"] button,.st-key-btn_man_editar div[data-testid="stButton"] button,.st-key-btn_tar_editar div[data-testid="stButton"] button,.st-key-btn_cat_editar div[data-testid="stButton"] button,.st-key-btn_tip_editar div[data-testid="stButton"] button,[class*="st-key-btn_info_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_info_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#5bb8e6,#1f6f9e)!important}
+.st-key-btn_usr_estado div[data-testid="stButton"] button,.st-key-btn_taq_estado div[data-testid="stButton"] button,.st-key-btn_man_estado div[data-testid="stButton"] button,.st-key-btn_tar_estado div[data-testid="stButton"] button,.st-key-btn_cat_estado div[data-testid="stButton"] button,.st-key-btn_tip_estado div[data-testid="stButton"] button,[class*="st-key-btn_warn_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_warn_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#ffc629,#f08a1c)!important}
+.st-key-btn_usr_clave div[data-testid="stButton"] button,.st-key-btn_taq_asignar div[data-testid="stButton"] button,.st-key-btn_tar_importar div[data-testid="stButton"] button,[class*="st-key-btn_neutral_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_cancel_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_cancel_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#C3C5C6,#403833)!important}
+.st-key-btn_usr_eliminar div[data-testid="stButton"] button,.st-key-btn_taq_eliminar div[data-testid="stButton"] button,.st-key-btn_man_eliminar div[data-testid="stButton"] button,.st-key-btn_tar_eliminar div[data-testid="stButton"] button,.st-key-btn_cat_eliminar div[data-testid="stButton"] button,.st-key-btn_tip_eliminar div[data-testid="stButton"] button,[class*="st-key-btn_danger_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_danger_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#e5533d,#8e1c1c)!important}
 @media(max-width:900px){.block-container{padding:.7rem .75rem 1.5rem!important}section[data-testid="stSidebar"]{min-width:200px!important;width:200px!important}.pp-topbar{min-height:58px}}
 </style>
 """, unsafe_allow_html=True)
@@ -327,7 +330,8 @@ with st.sidebar:
 
     if es_administrador:
         st.markdown('<div class="pp-menu-section">Administración</div>', unsafe_allow_html=True)
-        mostrar_menu("pp_menu_admin", [("usuarios", "👥  Usuarios"), ("taquillas", "🎟️  Taquillas"), ("manillas", "🎫  Manillas")])
+        mostrar_menu("pp_menu_admin", [("usuarios", "👥  Usuarios"), ("taquillas", "🎟️  Taquillas"), ("manillas", "🎫  Manillas"), ("tarifas", "💲  Tarifas"),
+            ("categorias", "🏷️  Categorías"), ("tipos_tarifa", "🔖  Tipos de tarifa")])
 
 # ============================================================
 # ENCABEZADO INTERNO
@@ -338,6 +342,9 @@ TITULOS_PAGINA = {
     "usuarios": "Usuarios",
     "taquillas": "Taquillas",
     "manillas": "Manillas",
+    "tarifas": "Tarifas",
+    "categorias": "Categorías",
+    "tipos_tarifa": "Tipos de Tarifa",
     "inventario_inicial": "Inventario Inicial",
     "consolidado_inventario": "Consolidado de Inventario",
 }
@@ -365,6 +372,12 @@ try:
         mostrar_modulo_inventario_inicial(usuario_actual, es_administrador, hoy)
     elif pagina_actual == "consolidado_inventario":
         mostrar_consolidado_inventario(hoy)
+    elif pagina_actual == "tarifas" and es_administrador:
+        mostrar_modulo_tarifas(usuario_actual, hoy)
+    elif pagina_actual == "categorias" and es_administrador:
+        mostrar_modulo_categorias(usuario_actual)
+    elif pagina_actual == "tipos_tarifa" and es_administrador:
+        mostrar_modulo_tipos_tarifa(usuario_actual)
     elif pagina_actual == "mi_cuenta":
         mostrar_mi_cuenta(usuario_actual)
     else:

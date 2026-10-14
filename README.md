@@ -12,6 +12,9 @@ Sistema del **Pony Parque (Hotel Mesa de los Santos)** en Streamlit, con la base
 | **Inventario inicial** | Todos | Por fecha y taquilla, cargar la cantidad inicial de cada manilla asignada. Muestra qué taquillas ya están inicializadas y su total. El operador solo carga el día de hoy; el administrador puede corregir otras fechas. |
 | **Taquillas** | Administrador | Igual que Usuarios: buscar, seleccionar y crear, editar, activar o desactivar y eliminar taquillas (el ID se genera solo; nombre y ubicación). Con el botón **Asignar manillas** se marcan las manillas que vende cada taquilla. |
 | **Manillas** | Administrador | Igual que Taquillas, con nombre y descripción. Viene con los 13 conceptos del parque (Adulto, Adulto Mayor, Niño, combos, atracciones). |
+| **Tarifas** | Administrador | Valor de cada manilla por taquilla, categoría y tipo, con vigencia desde/hasta. Solo se pueden crear tarifas para manillas asignadas a la taquilla. Filtros por taquilla, manilla, categoría y vigencia. Se pueden cargar muchas desde Excel, CSV o pegando las filas copiadas. |
+| **Categorías** | Administrador | Nombres de las categorías de tarifa (Entradas, Combo, Atracciones). Igual que Manillas. |
+| **Tipos de tarifa** | Administrador | Nombres de los tipos de tarifa (Plena, Convenio 1, Descuento 50%, Cortesía...). Igual que Manillas. |
 | **Usuarios** | Administrador | Igual que en PODEX: buscar, seleccionar un usuario en la tabla y usar los botones para crear (con correo de bienvenida opcional), editar, cambiar la contraseña, activar o desactivar y eliminar. |
 
 ## Estructura

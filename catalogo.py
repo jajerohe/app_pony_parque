@@ -102,6 +102,17 @@ def _lineas_etiquetas(nombres):
     return lineas
 
 
+_GENERO = {
+    "a": ("a", "o"), "una": ("una", "un"), "la": ("la", "el"), "del": ("de la", "del"),
+    "esta": ("esta", "este"), "Nueva": ("Nueva", "Nuevo"),
+}
+
+
+def _g(cfg, palabra):
+    """Concordancia: «Nueva categoría» pero «Nuevo tipo» (cfg["masculino"] = True)."""
+    return _GENERO[palabra][1 if cfg.get("masculino") else 0]
+
+
 def _titulo(texto):
     return texto[:1].upper() + texto[1:]
 
@@ -113,11 +124,11 @@ def _titulo(texto):
 def ventana_crear(cfg, usuario_actual):
 
     k, singular = cfg["clave"], cfg["singular"]
-    encabezado_ventana(f"Nueva {_titulo(singular)}")
+    encabezado_ventana(f"{_g(cfg, 'Nueva')} {_titulo(singular)}")
 
     with st.form(f"form_crear_{k}"):
         nombre = st.text_input("Nombre", placeholder=f"Ej: {cfg['ejemplo_nombre']}",
-                               help=f"El ID de la {singular} lo genera el sistema al crearla.")
+                               help=f"El ID {_g(cfg, 'del')} {singular} lo genera el sistema al crearla.")
         extra = st.text_input(f"{cfg['etiqueta_extra']} (opcional)", placeholder=f"Ej: {cfg['ejemplo_extra']}")
 
         with st.container(key=f"acciones_dlg_crear_{k}", horizontal=True,
@@ -143,13 +154,13 @@ def ventana_crear(cfg, usuario_actual):
             devolver=True
         )
     except psycopg.errors.UniqueViolation:
-        st.error(f"❌ Ya existe una {singular} con el nombre {nombre}.")
+        st.error(f"❌ Ya existe {_g(cfg, 'una')} {singular} con el nombre {nombre}.")
         return
     except Exception as e:
-        st.error(f"❌ No fue posible crear la {singular}: {e}")
+        st.error(f"❌ No fue posible crear {_g(cfg, 'la')} {singular}: {e}")
         return
 
-    _notificar(cfg, f"✅ {_titulo(singular)} {nuevo_id} · {nombre} creada correctamente.")
+    _notificar(cfg, f"✅ {_titulo(singular)} {nuevo_id} · {nombre} cread{_g(cfg, 'a')} correctamente.")
 
 
 @st.dialog(" ", width="large")
@@ -159,7 +170,7 @@ def ventana_editar(cfg, fila, usuario_actual):
     encabezado_ventana(f"Editar {_titulo(singular)}")
 
     ficha([("ID", fila["ID"]), ("Nombre", fila["NOMBRE"]),
-           ("Estado", "Activa" if fila["ACTIVO"] else "Inactiva")])
+           ("Estado", ("Activ" if fila["ACTIVO"] else "Inactiv") + _g(cfg, "a"))])
 
     with st.form(f"form_editar_{k}_{fila['ID']}"):
         nombre = st.text_input("Nombre", value=fila["NOMBRE"] or "")
@@ -193,21 +204,21 @@ def ventana_editar(cfg, fila, usuario_actual):
         st.error(f"❌ No fue posible guardar los cambios: {e}")
         return
 
-    _notificar(cfg, f"✅ {_titulo(singular)} {fila['ID']} actualizada correctamente.")
+    _notificar(cfg, f"✅ {_titulo(singular)} {fila['ID']} actualizad{_g(cfg, 'a')} correctamente.")
 
 
 @st.dialog(" ", width="large")
 def ventana_estado(cfg, fila, usuario_actual):
 
     k, singular = cfg["clave"], cfg["singular"]
-    encabezado_ventana(f"Cambiar Estado de la {_titulo(singular)}")
+    encabezado_ventana(f"Cambiar Estado {_g(cfg, 'del')} {_titulo(singular)}")
 
     activar = not fila["ACTIVO"]
     accion = "activar" if activar else "desactivar"
 
     ficha([("ID", fila["ID"]), ("Nombre", fila["NOMBRE"]), (cfg["etiqueta_extra"], fila["EXTRA"])])
     seccion(
-        f"¿Está seguro que desea {accion} esta {singular}?",
+        f"¿Está seguro que desea {accion} {_g(cfg, 'esta')} {singular}?",
         None if activar else cfg["aviso_desactivar"]
     )
 
@@ -231,10 +242,10 @@ def ventana_estado(cfg, fila, usuario_actual):
             (activar, usuario_actual, int(fila["ID"]))
         )
     except Exception as e:
-        st.error(f"❌ No fue posible {accion} la {singular}: {e}")
+        st.error(f"❌ No fue posible {accion} {_g(cfg, 'la')} {singular}: {e}")
         return
 
-    estado = "activada" if activar else "desactivada"
+    estado = ("activad" if activar else "desactivad") + _g(cfg, "a")
     _notificar(cfg, f"✅ {_titulo(singular)} {fila['ID']} {estado} correctamente.")
 
 
@@ -246,7 +257,7 @@ def ventana_eliminar(cfg, fila):
 
     ficha([("ID", fila["ID"]), ("Nombre", fila["NOMBRE"]), (cfg["etiqueta_extra"], fila["EXTRA"])])
     seccion(
-        f"¿Está seguro que desea eliminar esta {singular}?",
+        f"¿Está seguro que desea eliminar {_g(cfg, 'esta')} {singular}?",
         "Esta acción no se puede deshacer. Si solo quiere dejar de usarla, desactívela."
     )
 
@@ -265,13 +276,14 @@ def ventana_eliminar(cfg, fila):
     try:
         _ejecutar(f'DELETE FROM public."{cfg["tabla"]}" WHERE "{cfg["id"]}" = %s', (int(fila["ID"]),))
     except psycopg.errors.ForeignKeyViolation:
-        st.error(f"❌ La {singular} ya tiene movimientos registrados y no se puede eliminar. Puede desactivarla.")
+        st.error(f"❌ {_titulo(_g(cfg, 'la'))} {singular} ya tiene movimientos registrados y no se puede eliminar. "
+                 f"Puede desactivarl{_g(cfg, 'a')}.")
         return
     except Exception as e:
-        st.error(f"❌ No fue posible eliminar la {singular}: {e}")
+        st.error(f"❌ No fue posible eliminar {_g(cfg, 'la')} {singular}: {e}")
         return
 
-    _notificar(cfg, f"✅ {_titulo(singular)} {fila['ID']} eliminada correctamente.")
+    _notificar(cfg, f"✅ {_titulo(singular)} {fila['ID']} eliminad{_g(cfg, 'a')} correctamente.")
 
 
 @st.dialog(" ", width="large")
@@ -281,7 +293,7 @@ def ventana_asignar(cfg, fila, asignados, usuario_actual):
     encabezado_ventana(f"Asignar {asig['titulo']}")
 
     ficha([("ID", fila["ID"]), ("Nombre", fila["NOMBRE"]),
-           ("Estado", "Activa" if fila["ACTIVO"] else "Inactiva")])
+           ("Estado", ("Activ" if fila["ACTIVO"] else "Inactiv") + _g(cfg, "a"))])
 
     otros = obtener_registros(asig["tabla_otro"], asig["id_otro"], "NOMBRE")
     actuales = set(asignados["ID_OTRO"])
@@ -294,7 +306,7 @@ def ventana_asignar(cfg, fila, asignados, usuario_actual):
 
     with st.form(f"form_asignar_{k}_{fila['ID']}"):
         elegidos = st.multiselect(
-            f"{asig['titulo']} de esta {singular}",
+            f"{asig['titulo']} de {_g(cfg, 'esta')} {singular}",
             list(nombres),
             default=[i for i in nombres if i in actuales],
             format_func=lambda i: nombres[i],
@@ -388,14 +400,14 @@ def mostrar_catalogo(cfg, usuario_actual):
 
     with c_sel:
         if fila is not None:
-            st.markdown(f"**{_titulo(singular)} seleccionada:** {fila['ID']} · {escape(fila['NOMBRE'])}")
+            st.markdown(f"**{_titulo(singular)} seleccionad{_g(cfg, 'a')}:** {fila['ID']} · {escape(fila['NOMBRE'])}")
         else:
-            st.caption(f"☝️ Seleccione una {singular} en la tabla para administrarla.")
+            st.caption(f"☝️ Seleccione {_g(cfg, 'una')} {singular} en la tabla para administrarla.")
 
     with c_acciones:
         with st.container(key=f"acciones_{k}", horizontal=True,
                           horizontal_alignment="right", gap="small"):
-            if st.button("", icon=cfg["icono_nuevo"], key=f"btn_{k}_nuevo", help=f"Nueva {singular}"):
+            if st.button("", icon=cfg["icono_nuevo"], key=f"btn_{k}_nuevo", help=f"{_g(cfg, 'Nueva')} {singular}"):
                 ventana_crear(cfg, usuario_actual)
 
             if st.button("", icon=":material/edit:", key=f"btn_{k}_editar",
@@ -417,7 +429,7 @@ def mostrar_catalogo(cfg, usuario_actual):
                 ventana_eliminar(cfg, fila)
 
     if registros.empty:
-        st.info(f"ℹ️ No hay {plural} registradas." if not texto
+        st.info(f"ℹ️ No hay {plural} registrad{_g(cfg, 'a')}s." if not texto
                 else f"ℹ️ No existen {plural} que coincidan con el criterio de búsqueda.")
         return
 
@@ -426,7 +438,7 @@ def mostrar_catalogo(cfg, usuario_actual):
         "ID": registros["ID"],
         "NOMBRE": registros["NOMBRE"],
         columna_extra: registros["EXTRA"].fillna("—"),
-        "ESTADO": registros["ACTIVO"].map(lambda v: "🟢 Activa" if v else "🔴 Inactiva"),
+        "ESTADO": registros["ACTIVO"].map(lambda v: ("🟢 Activ" if v else "🔴 Inactiv") + _g(cfg, "a")),
     })
 
     alto_fila = 35
