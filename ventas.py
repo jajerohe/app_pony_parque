@@ -37,8 +37,9 @@ def obtener_taquillas_activas():
 
 @st.cache_data(ttl=60, show_spinner=False)
 def obtener_planilla_ventas(fecha, id_taquilla):
-    """Tarifas activas y vigentes de la taquilla en la fecha, más las que ya
-    tengan ventas ese día, con la cantidad vendida."""
+    """Tarifas activas y vigentes en la fecha de las manillas asignadas a la
+    taquilla (el precio es el mismo en todas), más las que ya tengan ventas de
+    la taquilla ese día, con la cantidad vendida."""
     datos = _consultar(
         '''SELECT r."ID_TARIFA", c."ID_CATEGORIA", c."NOMBRE", m."ID_MANILLA", m."NOMBRE", p."NOMBRE",
                   COALESCE(v."VALOR_UNITARIO", r."VALOR"), v."CANTIDAD"
@@ -48,8 +49,10 @@ def obtener_planilla_ventas(fecha, id_taquilla):
            JOIN public."TIPOS_TARIFA" p ON p."ID_TIPO" = r."ID_TIPO"
            LEFT JOIN public."VENTAS" v
                   ON v."ID_TARIFA" = r."ID_TARIFA" AND v."FECHA" = %(f)s AND v."ID_TAQUILLA" = %(t)s
-           WHERE r."ID_TAQUILLA" = %(t)s
-             AND ((r."ACTIVO" AND %(f)s BETWEEN r."DESDE" AND r."HASTA") OR v."CANTIDAD" IS NOT NULL)
+           WHERE (r."ACTIVO" AND %(f)s BETWEEN r."DESDE" AND r."HASTA"
+                  AND EXISTS (SELECT 1 FROM public."TAQUILLAS_MANILLAS" a
+                              WHERE a."ID_TAQUILLA" = %(t)s AND a."ID_MANILLA" = r."ID_MANILLA"))
+              OR v."CANTIDAD" IS NOT NULL
            ORDER BY c."ID_CATEGORIA", m."ID_MANILLA", r."VALOR" DESC, p."ID_TIPO"''',
         {"f": fecha, "t": id_taquilla},
         ("ID_TARIFA", "ID_CATEGORIA", "CATEGORIA", "ID_MANILLA", "MANILLA", "TIPO", "VALOR", "CANTIDAD"),
@@ -235,7 +238,8 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
                    "Cárguelo primero en Operación → Inventario inicial.")
         return
     if planilla.empty:
-        st.info("Esta taquilla no tiene tarifas vigentes en la fecha. Créelas en Administración → Tarifas.")
+        st.info("Esta taquilla no tiene tarifas vigentes en la fecha. Revise que tenga manillas asignadas "
+                "(Taquillas → Asignar manillas) y que esas manillas tengan tarifa en Administración → Tarifas.")
         return
 
     tab_ventas, tab_inv = st.tabs(["🧾 Ventas del día", "📦 Inventario del día"])
