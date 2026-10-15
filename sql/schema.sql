@@ -139,12 +139,13 @@ SELECT n FROM unnest(ARRAY['Plena','Pleno','Convenio 1','Convenio 2','Descuento 
 WHERE NOT EXISTS (SELECT 1 FROM public."TIPOS_TARIFA");
 
 -- ============================================================
--- TARIFAS POR TAQUILLA, MANILLA Y TIPO, CON VIGENCIA
+-- TARIFAS POR MANILLA, CATEGORÍA Y TIPO, CON VIGENCIA
+-- El precio es el mismo en todas las taquillas: cada taquilla vende las
+-- tarifas de las manillas que tiene asignadas (TAQUILLAS_MANILLAS).
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public."TARIFAS" (
     "ID_TARIFA"         integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "ID_CATEGORIA"      integer       NOT NULL REFERENCES public."CATEGORIAS" ("ID_CATEGORIA"),
-    "ID_TAQUILLA"       integer       NOT NULL REFERENCES public."TAQUILLAS" ("ID_TAQUILLA"),
     "ID_MANILLA"        integer       NOT NULL REFERENCES public."MANILLAS" ("ID_MANILLA"),
     "ID_TIPO"           integer       NOT NULL REFERENCES public."TIPOS_TARIFA" ("ID_TIPO"),
     "VALOR"             numeric(12,2) NOT NULL CHECK ("VALOR" >= 0),
@@ -156,19 +157,75 @@ CREATE TABLE IF NOT EXISTS public."TARIFAS" (
     "FECHA_ACTUALIZA"   timestamptz   NOT NULL DEFAULT now(),
     CHECK ("HASTA" >= "DESDE")
 );
--- Una tarifa activa por taquilla, manilla y tipo en cada día: así en ventas
+-- Bases creadas cuando las tarifas eran por taquilla: las tarifas iguales de
+-- varias taquillas (misma categoría, manilla, tipo, valor y vigencia) quedan
+-- en una sola, las ventas pasan a esa tarifa y se quita la columna. Si dos
+-- taquillas tenían precios distintos para lo mismo en fechas que se cruzan, no
+-- se cambia nada y el mensaje dice cuáles son: desactive o ajuste una de ellas
+-- en Tarifas y vuelva a ejecutar este archivo.
+DO $$
+DECLARE
+    cruces text;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'TARIFAS' AND column_name = 'ID_TAQUILLA') THEN
+        RETURN;
+    END IF;
+
+    CREATE TEMP TABLE "TARIFAS_UNIR" ON COMMIT DROP AS
+    SELECT "ID_TARIFA",
+           min("ID_TARIFA") OVER g AS "QUEDA",
+           bool_or("ACTIVO") OVER g AS "ACTIVO"
+    FROM public."TARIFAS"
+    WINDOW g AS (PARTITION BY "ID_CATEGORIA", "ID_MANILLA", "ID_TIPO", "VALOR", "DESDE", "HASTA");
+
+    SELECT string_agg(format('%s · %s · %s: tarifas %s ($%s, %s a %s) y %s ($%s, %s a %s)',
+                             c."NOMBRE", m."NOMBRE", p."NOMBRE",
+                             a."ID_TARIFA", a."VALOR", a."DESDE", a."HASTA",
+                             b."ID_TARIFA", b."VALOR", b."DESDE", b."HASTA"), E'\n')
+    INTO cruces
+    FROM public."TARIFAS" a
+    JOIN public."TARIFAS" b
+      ON b."ID_CATEGORIA" = a."ID_CATEGORIA" AND b."ID_MANILLA" = a."ID_MANILLA"
+     AND b."ID_TIPO" = a."ID_TIPO" AND b."ID_TARIFA" > a."ID_TARIFA"
+     AND daterange(a."DESDE", a."HASTA", '[]') && daterange(b."DESDE", b."HASTA", '[]')
+    JOIN "TARIFAS_UNIR" ua ON ua."ID_TARIFA" = a."ID_TARIFA" AND ua."QUEDA" = a."ID_TARIFA" AND ua."ACTIVO"
+    JOIN "TARIFAS_UNIR" ub ON ub."ID_TARIFA" = b."ID_TARIFA" AND ub."QUEDA" = b."ID_TARIFA" AND ub."ACTIVO"
+    JOIN public."CATEGORIAS" c ON c."ID_CATEGORIA" = a."ID_CATEGORIA"
+    JOIN public."MANILLAS" m ON m."ID_MANILLA" = a."ID_MANILLA"
+    JOIN public."TIPOS_TARIFA" p ON p."ID_TIPO" = a."ID_TIPO";
+    IF cruces IS NOT NULL THEN
+        RAISE EXCEPTION E'Hay tarifas activas con precios distintos según la taquilla en fechas que se cruzan. '
+                         'Desactive o ajuste una de cada par y vuelva a ejecutar:\n%', cruces;
+    END IF;
+
+    UPDATE public."VENTAS" v SET "ID_TARIFA" = u."QUEDA"
+    FROM "TARIFAS_UNIR" u
+    WHERE v."ID_TARIFA" = u."ID_TARIFA" AND u."QUEDA" <> u."ID_TARIFA";
+
+    ALTER TABLE public."TARIFAS" DROP CONSTRAINT IF EXISTS "TARIFAS_SIN_CRUCE";
+    DROP INDEX IF EXISTS public."TARIFAS_UNICA";
+    DELETE FROM public."TARIFAS" t USING "TARIFAS_UNIR" u
+    WHERE t."ID_TARIFA" = u."ID_TARIFA" AND u."QUEDA" <> u."ID_TARIFA";
+    UPDATE public."TARIFAS" t SET "ACTIVO" = u."ACTIVO"
+    FROM "TARIFAS_UNIR" u
+    WHERE t."ID_TARIFA" = u."ID_TARIFA" AND t."ACTIVO" <> u."ACTIVO";
+    ALTER TABLE public."TARIFAS" DROP COLUMN "ID_TAQUILLA";
+END $$;
+
+-- Una tarifa activa por categoría, manilla y tipo en cada día: así en ventas
 -- nunca hay dos precios posibles para el mismo tipo.
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 -- Incluye la categoría: «Adulto · Plena» puede existir en Entradas y en Pase anual.
 ALTER TABLE public."TARIFAS" DROP CONSTRAINT IF EXISTS "TARIFAS_SIN_CRUCE";
 ALTER TABLE public."TARIFAS" ADD CONSTRAINT "TARIFAS_SIN_CRUCE" EXCLUDE USING gist (
-    "ID_CATEGORIA" WITH =, "ID_TAQUILLA" WITH =, "ID_MANILLA" WITH =, "ID_TIPO" WITH =,
+    "ID_CATEGORIA" WITH =, "ID_MANILLA" WITH =, "ID_TIPO" WITH =,
     daterange("DESDE", "HASTA", '[]') WITH &&
 ) WHERE ("ACTIVO");
 -- Evita cargar dos veces exactamente la misma tarifa.
 DROP INDEX IF EXISTS public."TARIFAS_UNICA";
 CREATE UNIQUE INDEX "TARIFAS_UNICA"
-    ON public."TARIFAS" ("ID_CATEGORIA", "ID_TAQUILLA", "ID_MANILLA", "ID_TIPO", "VALOR", "DESDE", "HASTA");
+    ON public."TARIFAS" ("ID_CATEGORIA", "ID_MANILLA", "ID_TIPO", "VALOR", "DESDE", "HASTA");
 
 -- ============================================================
 -- VENTAS DEL DÍA: cantidad vendida por taquilla y tarifa

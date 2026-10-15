@@ -1,5 +1,6 @@
-"""Tarifas: precio de cada manilla por taquilla y tipo (plena, convenio,
-descuento, cortesía...), con su vigencia desde/hasta.
+"""Tarifas: precio de cada manilla por categoría y tipo (plena, convenio,
+descuento, cortesía...), con su vigencia desde/hasta. El precio es el mismo en
+todas las taquillas: cada taquilla vende las tarifas de sus manillas asignadas.
 
 Funciona igual que los catálogos: buscar y filtrar, seleccionar una tarifa en la
 tabla y usar los botones para crear, editar, activar o desactivar y eliminar.
@@ -21,7 +22,7 @@ from catalogo import obtener_asignaciones, obtener_registros
 from database import Database
 from usuarios import encabezado_ventana, ficha, seccion
 
-COLUMNAS_IMPORTAR = ["CATEGORIA", "TAQUILLA", "MANILLA", "TIPO", "VALOR", "DESDE", "HASTA"]
+COLUMNAS_IMPORTAR = ["CATEGORIA", "MANILLA", "TIPO", "VALOR", "DESDE", "HASTA"]
 
 
 # ============================================================
@@ -33,18 +34,16 @@ def obtener_tarifas():
     try:
         db.conectar()
         db.execute('''
-            SELECT r."ID_TARIFA", r."ID_CATEGORIA", c."NOMBRE", r."ID_TAQUILLA", t."NOMBRE",
-                   r."ID_MANILLA", m."NOMBRE", r."ID_TIPO", p."NOMBRE",
+            SELECT r."ID_TARIFA", r."ID_CATEGORIA", c."NOMBRE", r."ID_MANILLA", m."NOMBRE", r."ID_TIPO", p."NOMBRE",
                    r."VALOR", r."DESDE", r."HASTA", r."ACTIVO"
             FROM public."TARIFAS" r
             JOIN public."CATEGORIAS" c ON c."ID_CATEGORIA" = r."ID_CATEGORIA"
-            JOIN public."TAQUILLAS" t ON t."ID_TAQUILLA" = r."ID_TAQUILLA"
             JOIN public."MANILLAS" m ON m."ID_MANILLA" = r."ID_MANILLA"
             JOIN public."TIPOS_TARIFA" p ON p."ID_TIPO" = r."ID_TIPO"
-            ORDER BY c."ID_CATEGORIA", m."ID_MANILLA", t."ID_TAQUILLA", r."VALOR" DESC
+            ORDER BY c."ID_CATEGORIA", m."ID_MANILLA", r."VALOR" DESC, p."ID_TIPO", r."DESDE"
         ''')
         datos = pd.DataFrame(db.fetchall(), columns=[
-            "ID", "ID_CATEGORIA", "CATEGORIA", "ID_TAQUILLA", "TAQUILLA", "ID_MANILLA", "MANILLA",
+            "ID", "ID_CATEGORIA", "CATEGORIA", "ID_MANILLA", "MANILLA",
             "ID_TIPO", "TIPO", "VALOR", "DESDE", "HASTA", "ACTIVO",
         ])
         datos["VALOR"] = datos["VALOR"].astype(float)
@@ -80,10 +79,15 @@ def _activos(tabla, id_col):
 
 
 def _asignadas():
-    """Pares (ID_TAQUILLA, ID_MANILLA) de las manillas asignadas a cada taquilla.
-    Solo se pueden crear tarifas para esas combinaciones."""
+    """IDs de las manillas asignadas a alguna taquilla (las que se pueden vender)."""
     a = obtener_asignaciones("TAQUILLAS_MANILLAS", "ID_TAQUILLA", "MANILLAS", "ID_MANILLA")
-    return set(zip(a["ID"].astype(int), a["ID_OTRO"].astype(int)))
+    return set(a["ID_OTRO"].astype(int))
+
+
+def _aviso_sin_taquilla(id_manilla, nombre):
+    if id_manilla is not None and int(id_manilla) not in _asignadas():
+        st.warning(f"⚠️ Ninguna taquilla tiene asignada la manilla {nombre}: la tarifa no aparecerá en ventas "
+                   "hasta que la asigne en Taquillas → Asignar manillas.")
 
 
 def _pesos(valor):
@@ -158,13 +162,13 @@ def _campos_tarifa(prefijo, fila=None, hoy=None):
     return id_categoria, id_tipo, valor, desde, hasta
 
 
-def _choque(tarifas, id_categoria, id_taquilla, id_manilla, id_tipo, desde, hasta, excluir=None):
-    """ID de una tarifa activa de la misma taquilla, manilla y tipo cuyas fechas se
+def _choque(tarifas, id_categoria, id_manilla, id_tipo, desde, hasta, excluir=None):
+    """ID de una tarifa activa de la misma categoría, manilla y tipo cuyas fechas se
     cruzan con desde/hasta (None si no hay). Así en ventas nunca hay dos precios
     posibles para el mismo tipo en un mismo día."""
     otras = tarifas[
         tarifas["ACTIVO"]
-        & (tarifas["ID_CATEGORIA"] == id_categoria) & (tarifas["ID_TAQUILLA"] == id_taquilla) & (tarifas["ID_MANILLA"] == id_manilla)
+        & (tarifas["ID_CATEGORIA"] == id_categoria) & (tarifas["ID_MANILLA"] == id_manilla)
         & (tarifas["ID_TIPO"] == id_tipo) & (tarifas["ID"] != excluir)
         & (tarifas["DESDE"] <= hasta) & (tarifas["HASTA"] >= desde)
     ]
@@ -173,10 +177,10 @@ def _choque(tarifas, id_categoria, id_taquilla, id_manilla, id_tipo, desde, hast
 
 def _error_bd(e, accion):
     if isinstance(e, psycopg.errors.ExclusionViolation):
-        st.error("❌ Ya existe una tarifa activa del mismo tipo para esa taquilla y manilla en esas fechas. "
+        st.error("❌ Ya existe una tarifa activa del mismo tipo para esa categoría y manilla en esas fechas. "
                  "Use otro tipo (por ejemplo Convenio 2) o ajuste la vigencia.")
     elif isinstance(e, psycopg.errors.UniqueViolation):
-        st.error("❌ Ya existe una tarifa igual (misma taquilla, manilla, tipo, valor y vigencia).")
+        st.error("❌ Ya existe una tarifa igual (misma categoría, manilla, tipo, valor y vigencia).")
     else:
         st.error(f"❌ No fue posible {accion} la tarifa: {e}")
 
@@ -185,8 +189,8 @@ def _error_bd(e, accion):
 # VENTANAS
 # ============================================================
 INSERTAR = '''INSERT INTO public."TARIFAS"
-    ("ID_CATEGORIA","ID_TAQUILLA","ID_MANILLA","ID_TIPO","VALOR","DESDE","HASTA","USUARIO_ACTUALIZA")
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+    ("ID_CATEGORIA","ID_MANILLA","ID_TIPO","VALOR","DESDE","HASTA","USUARIO_ACTUALIZA")
+    VALUES (%s,%s,%s,%s,%s,%s,%s)
     ON CONFLICT DO NOTHING'''
 
 
@@ -194,26 +198,13 @@ INSERTAR = '''INSERT INTO public."TARIFAS"
 def ventana_crear(tarifas, usuario_actual, hoy):
     encabezado_ventana("Nueva Tarifa")
 
-    taquillas = _activos("TAQUILLAS", "ID_TAQUILLA")
     manillas = _activos("MANILLAS", "ID_MANILLA")
-    nombres_taq = dict(zip(taquillas["ID"], taquillas["NOMBRE"]))
     nombres_man = dict(zip(manillas["ID"], manillas["NOMBRE"]))
 
     id_manilla = st.selectbox("Manilla", list(nombres_man), format_func=lambda i: nombres_man[i],
-                              index=None, placeholder="Seleccione la manilla...", key="tar_n_manilla")
-    asignadas = _asignadas()
-    # Solo las taquillas que tienen asignada la manilla elegida.
-    con_manilla = [i for i in nombres_taq if id_manilla is not None and (int(i), int(id_manilla)) in asignadas]
-    if id_manilla is not None and not con_manilla:
-        st.warning(f"⚠️ Ninguna taquilla activa tiene asignada la manilla {nombres_man[id_manilla]}. "
-                   "Asígnela en Taquillas → Asignar manillas.")
-    ids_taquilla = st.multiselect(
-        "Taquillas", con_manilla, format_func=lambda i: nombres_taq[i], key=f"tar_n_taquillas_{id_manilla}",
-        placeholder="Seleccione una o varias taquillas..." if id_manilla is not None else "Primero elija la manilla",
-        disabled=id_manilla is None,
-        help="Solo aparecen las taquillas que tienen asignada esta manilla. "
-             "Si elige varias, se crea la misma tarifa en cada una.",
-    )
+                              index=None, placeholder="Seleccione la manilla...", key="tar_n_manilla",
+                              help="El valor aplica en todas las taquillas que tengan asignada la manilla.")
+    _aviso_sin_taquilla(id_manilla, nombres_man.get(id_manilla))
     id_categoria, id_tipo, valor, desde, hasta = _campos_tarifa("tar_n", hoy=hoy)
 
     with st.container(key="acciones_dlg_crear_tar", horizontal=True, horizontal_alignment="right"):
@@ -221,66 +212,43 @@ def ventana_crear(tarifas, usuario_actual, hoy):
     if not crear:
         return
 
-    error = (
-        "Debe seleccionar la manilla." if id_manilla is None
-        else "Debe seleccionar al menos una taquilla." if not ids_taquilla
-        else _validar(id_categoria, id_tipo, valor, desde, hasta)
-    )
+    error = ("Debe seleccionar la manilla." if id_manilla is None
+             else _validar(id_categoria, id_tipo, valor, desde, hasta))
     if not error:
-        chocan = [f"{nombres_taq[i]} (tarifa {c})" for i in ids_taquilla
-                  if (c := _choque(tarifas, id_categoria, i, id_manilla, id_tipo, desde, hasta))]
-        if chocan:
-            error = ("Ya existe una tarifa activa del mismo tipo en esas fechas para: "
-                     + ", ".join(chocan) + ". Use otro tipo (por ejemplo Convenio 2) o ajuste la vigencia.")
+        choca = _choque(tarifas, id_categoria, id_manilla, id_tipo, desde, hasta)
+        if choca:
+            error = (f"La tarifa {choca} ya es del mismo tipo para esa categoría y manilla en esas fechas. "
+                     "Use otro tipo (por ejemplo Convenio 2) o ajuste la vigencia.")
     if error:
         st.error(f"❌ {error}")
         return
 
-    db = Database()
-    creadas = 0
     try:
-        db.conectar()
-        for id_taquilla in ids_taquilla:
-            db.execute(INSERTAR, (id_categoria, int(id_taquilla), int(id_manilla), id_tipo, valor,
-                                  desde, hasta, usuario_actual))
-            creadas += db.cursor.rowcount
-        db.commit()
+        creadas = _ejecutar(INSERTAR, (id_categoria, int(id_manilla), id_tipo, valor, desde, hasta, usuario_actual))
     except Exception as e:
-        db.rollback()
         _error_bd(e, "crear")
         return
-    finally:
-        db.cerrar()
-
-    repetidas = len(ids_taquilla) - creadas
-    _notificar(
-        f"✅ {creadas} tarifa(s) de {nombres_man[id_manilla]} · {_lista('TIPOS_TARIFA', 'ID_TIPO')[id_tipo]} creadas."
-        + (f" {repetidas} ya existían y no se duplicaron." if repetidas else "")
-    )
+    if not creadas:
+        st.error("❌ Ya existe una tarifa igual (misma categoría, manilla, tipo, valor y vigencia).")
+        return
+    _notificar(f"✅ Tarifa de {nombres_man[id_manilla]} · {_lista('TIPOS_TARIFA', 'ID_TIPO')[id_tipo]} creada.")
 
 
 @st.dialog(" ", width="large")
 def ventana_editar(fila, tarifas, usuario_actual):
     encabezado_ventana("Editar Tarifa")
 
-    taquillas = obtener_registros("TAQUILLAS", "ID_TAQUILLA", "NOMBRE")
     manillas = obtener_registros("MANILLAS", "ID_MANILLA", "NOMBRE")
     # Activas más la que ya tiene la tarifa, aunque esté inactiva.
-    taquillas = taquillas[taquillas["ACTIVO"] | (taquillas["ID"] == fila["ID_TAQUILLA"])]
     manillas = manillas[manillas["ACTIVO"] | (manillas["ID"] == fila["ID_MANILLA"])]
-    nombres_taq = dict(zip(taquillas["ID"], taquillas["NOMBRE"]))
     nombres_man = dict(zip(manillas["ID"], manillas["NOMBRE"]))
 
     ficha([("ID", fila["ID"]), ("Vigencia", fila["VIGENCIA"]),
            ("Estado", "Activa" if fila["ACTIVO"] else "Inactiva")])
 
-    c1, c2 = st.columns(2)
-    with c1:
-        id_manilla = st.selectbox("Manilla", list(nombres_man), format_func=lambda i: nombres_man[i],
-                                  index=list(nombres_man).index(fila["ID_MANILLA"]), key="tar_e_manilla")
-    with c2:
-        id_taquilla = st.selectbox("Taquilla", list(nombres_taq), format_func=lambda i: nombres_taq[i],
-                                   index=list(nombres_taq).index(fila["ID_TAQUILLA"]), key="tar_e_taquilla")
+    id_manilla = st.selectbox("Manilla", list(nombres_man), format_func=lambda i: nombres_man[i],
+                              index=list(nombres_man).index(fila["ID_MANILLA"]), key="tar_e_manilla")
+    _aviso_sin_taquilla(id_manilla, nombres_man.get(id_manilla))
     id_categoria, id_tipo, valor, desde, hasta = _campos_tarifa(f"tar_e_{fila['ID']}", fila=fila)
 
     with st.container(key="acciones_dlg_editar_tar", horizontal=True, horizontal_alignment="right"):
@@ -289,13 +257,10 @@ def ventana_editar(fila, tarifas, usuario_actual):
         return
 
     error = _validar(id_categoria, id_tipo, valor, desde, hasta)
-    if not error and (int(id_taquilla), int(id_manilla)) not in _asignadas():
-        error = (f"La taquilla {nombres_taq[id_taquilla]} no tiene asignada la manilla "
-                 f"{nombres_man[id_manilla]}. Asígnela en Taquillas → Asignar manillas.")
     if not error and fila["ACTIVO"]:
-        choca = _choque(tarifas, id_categoria, id_taquilla, id_manilla, id_tipo, desde, hasta, excluir=fila["ID"])
+        choca = _choque(tarifas, id_categoria, id_manilla, id_tipo, desde, hasta, excluir=fila["ID"])
         if choca:
-            error = (f"La tarifa {choca} ya es del mismo tipo para esa taquilla y manilla en esas fechas. "
+            error = (f"La tarifa {choca} ya es del mismo tipo para esa categoría y manilla en esas fechas. "
                      "Use otro tipo o ajuste la vigencia.")
     if error:
         st.error(f"❌ {error}")
@@ -303,10 +268,10 @@ def ventana_editar(fila, tarifas, usuario_actual):
     try:
         _ejecutar(
             '''UPDATE public."TARIFAS"
-               SET "ID_CATEGORIA"=%s, "ID_TAQUILLA"=%s, "ID_MANILLA"=%s, "ID_TIPO"=%s, "VALOR"=%s,
+               SET "ID_CATEGORIA"=%s, "ID_MANILLA"=%s, "ID_TIPO"=%s, "VALOR"=%s,
                    "DESDE"=%s, "HASTA"=%s, "USUARIO_ACTUALIZA"=%s, "FECHA_ACTUALIZA"=now()
                WHERE "ID_TARIFA"=%s''',
-            (id_categoria, int(id_taquilla), int(id_manilla), id_tipo, valor, desde, hasta,
+            (id_categoria, int(id_manilla), id_tipo, valor, desde, hasta,
              usuario_actual, int(fila["ID"]))
         )
     except Exception as e:
@@ -316,7 +281,7 @@ def ventana_editar(fila, tarifas, usuario_actual):
 
 
 def _ficha_tarifa(fila):
-    ficha([("ID", fila["ID"]), ("Taquilla", fila["TAQUILLA"]), ("Manilla", fila["MANILLA"]),
+    ficha([("ID", fila["ID"]), ("Categoría", fila["CATEGORIA"]), ("Manilla", fila["MANILLA"]),
            ("Tipo", fila["TIPO"]), ("Valor", _pesos(fila["VALOR"])),
            ("Vigencia", f"{fila['DESDE']:%d/%m/%Y} a {fila['HASTA']:%d/%m/%Y}")])
 
@@ -432,7 +397,7 @@ def _leer_tabla(archivo, texto):
             datos.columns = [_normalizar(v).upper() for v in fila]
             datos = datos.rename(columns={"MANILLAS": "MANILLA"})
             return datos.dropna(how="all")
-    raise ValueError("No se encontró la fila de encabezados (CATEGORIA, TAQUILLA, MANILLAS, TIPO, VALOR, DESDE, HASTA).")
+    raise ValueError("No se encontró la fila de encabezados (CATEGORIA, MANILLAS, TIPO, VALOR, DESDE, HASTA).")
 
 
 def _preparar_importacion(datos):
@@ -440,13 +405,10 @@ def _preparar_importacion(datos):
     if faltan:
         raise ValueError(f"Faltan las columnas: {', '.join(faltan)}.")
 
-    taquillas = _activos("TAQUILLAS", "ID_TAQUILLA")
     manillas = _activos("MANILLAS", "ID_MANILLA")
-    por_nombre_taq = {_normalizar(n): i for i, n in zip(taquillas["ID"], taquillas["NOMBRE"])}
     por_nombre_man = {_normalizar(n): i for i, n in zip(manillas["ID"], manillas["NOMBRE"])}
     categorias = {_normalizar(n): i for i, n in _lista("CATEGORIAS", "ID_CATEGORIA").items()}
     tipos = {_normalizar(n): i for i, n in _lista("TIPOS_TARIFA", "ID_TIPO").items()}
-    asignadas = _asignadas()
     existentes = obtener_tarifas()
     nuevas = []  # filas válidas del archivo, para detectar repetidas dentro del mismo archivo
 
@@ -455,15 +417,10 @@ def _preparar_importacion(datos):
         cat = str(f["CATEGORIA"] or "").strip()
         tipo = str(f["TIPO"] or "").strip()
         valor, desde, hasta = _numero(f["VALOR"]), _fecha(f["DESDE"]), _fecha(f["HASTA"])
-        id_taq = por_nombre_taq.get(_normalizar(f["TAQUILLA"]))
         id_man = por_nombre_man.get(_normalizar(f["MANILLA"]))
         problemas = []
-        if id_taq is None:
-            problemas.append("taquilla no existe o está inactiva")
         if id_man is None:
             problemas.append("manilla no existe o está inactiva")
-        if id_taq is not None and id_man is not None and (int(id_taq), int(id_man)) not in asignadas:
-            problemas.append("la taquilla no tiene asignada esta manilla")
         id_cat, id_tipo = categorias.get(_normalizar(cat)), tipos.get(_normalizar(tipo))
         if id_cat is None:
             problemas.append(f"la categoría «{cat}» no existe")
@@ -473,17 +430,19 @@ def _preparar_importacion(datos):
         if error:
             problemas.append(error.rstrip(".").lower())
         if not problemas:
-            choca = _choque(existentes, id_cat, id_taq, id_man, id_tipo, desde, hasta)
+            choca = _choque(existentes, id_cat, id_man, id_tipo, desde, hasta)
             if choca:
                 problemas.append(f"ya existe la tarifa {choca} de este tipo en esas fechas")
-            elif any(n[:4] == (id_cat, id_taq, id_man, id_tipo) and n[4] <= hasta and n[5] >= desde for n in nuevas):
-                problemas.append(f"el tipo «{tipo}» está repetido en el archivo para esta taquilla y "
-                                 "manilla en las mismas fechas (¿debería ser otro tipo, como Convenio 2?)")
+            elif (id_cat, id_man, id_tipo, valor, desde, hasta) in nuevas:
+                # Hojas antiguas traen la misma tarifa una vez por taquilla: se carga una sola.
+                problemas.append("igual a otra fila del archivo (se carga una sola vez)")
+            elif any(n[:3] == (id_cat, id_man, id_tipo) and n[4] <= hasta and n[5] >= desde for n in nuevas):
+                problemas.append(f"el tipo «{tipo}» está repetido en el archivo para esta categoría y "
+                                 "manilla en las mismas fechas con otro valor (¿debería ser otro tipo, como Convenio 2?)")
             else:
-                nuevas.append((id_cat, id_taq, id_man, id_tipo, desde, hasta))
+                nuevas.append((id_cat, id_man, id_tipo, valor, desde, hasta))
         filas.append({
             "CATEGORIA": cat, "ID_CATEGORIA": id_cat,
-            "TAQUILLA": str(f["TAQUILLA"] or "").strip(), "ID_TAQUILLA": id_taq,
             "MANILLA": str(f["MANILLA"] or "").strip(), "ID_MANILLA": id_man,
             "TIPO": tipo, "ID_TIPO": id_tipo,
             "VALOR": valor, "DESDE": desde, "HASTA": hasta,
@@ -497,10 +456,10 @@ def _preparar_importacion(datos):
 def ventana_importar(usuario_actual):
     encabezado_ventana("Cargar Tarifas")
     seccion("Desde una hoja de cálculo",
-            "Use las columnas CATEGORIA, TAQUILLA, MANILLAS, TIPO, VALOR, DESDE y HASTA. "
-            "Los nombres de taquillas y manillas deben coincidir con los del sistema (no importan "
-            "mayúsculas ni tildes), igual que las categorías y los tipos, y la manilla debe estar "
-            "asignada a la taquilla.")
+            "Use las columnas CATEGORIA, MANILLAS, TIPO, VALOR, DESDE y HASTA (el valor aplica en "
+            "todas las taquillas; si la hoja trae una columna TAQUILLA se ignora). Los nombres de "
+            "manillas, categorías y tipos deben coincidir con los del sistema (no importan "
+            "mayúsculas ni tildes).")
 
     archivo = st.file_uploader("Archivo Excel o CSV", type=["xlsx", "csv"], key="tar_archivo")
     texto = st.text_area("…o pegue aquí las filas copiadas de Excel (con los encabezados)",
@@ -518,7 +477,7 @@ def ventana_importar(usuario_actual):
     preparadas = preparadas.sort_values("OK", kind="stable").reset_index(drop=True)  # problemas primero
     validas = preparadas[preparadas["OK"]]
     st.markdown(f"**{len(validas)} de {len(preparadas)} filas listas para cargar.**")
-    vista = preparadas.drop(columns=["ID_CATEGORIA", "ID_TAQUILLA", "ID_MANILLA", "ID_TIPO", "OK"]).copy()
+    vista = preparadas.drop(columns=["ID_CATEGORIA", "ID_MANILLA", "ID_TIPO", "OK"]).copy()
     vista["VALOR"] = vista["VALOR"].map(_pesos)
     st.dataframe(vista, hide_index=True, width="stretch", height=min(38 + 35 * len(vista), 360),
                  column_config={"DESDE": st.column_config.DateColumn(format="DD/MM/YYYY"),
@@ -535,7 +494,7 @@ def ventana_importar(usuario_actual):
     try:
         db.conectar()
         for _, f in validas.iterrows():
-            db.execute(INSERTAR, (int(f["ID_CATEGORIA"]), int(f["ID_TAQUILLA"]), int(f["ID_MANILLA"]), int(f["ID_TIPO"]),
+            db.execute(INSERTAR, (int(f["ID_CATEGORIA"]), int(f["ID_MANILLA"]), int(f["ID_TIPO"]),
                                   float(f["VALOR"]), f["DESDE"], f["HASTA"], usuario_actual))
             creadas += db.cursor.rowcount
         db.commit()
@@ -573,19 +532,15 @@ def mostrar_modulo_tarifas(usuario_actual, hoy):
     tarifas["VIGENCIA"] = [_vigencia(d, h, hoy) for d, h in zip(tarifas["DESDE"], tarifas["HASTA"])]
 
     # Filtros
-    f1, f2, f3, f4 = st.columns([1.3, 1.3, 1, 1])
+    f1, f2, f3 = st.columns([1.3, 1.3, 1])
     with f1:
-        f_taq = st.multiselect("🎟️ Taquilla", sorted(tarifas["TAQUILLA"].unique()), placeholder="Todas")
-    with f2:
         f_man = st.multiselect("🎫 Manilla", list(dict.fromkeys(tarifas["MANILLA"])), placeholder="Todas")
-    with f3:
+    with f2:
         f_cat = st.multiselect("🏷️ Categoría", sorted(tarifas["CATEGORIA"].unique()), placeholder="Todas")
-    with f4:
+    with f3:
         f_vig = st.selectbox("📅 Vigencia", ["Todas", "🟢 Vigente", "⏳ Futura", "⚪ Vencida"])
 
     vista = tarifas
-    if f_taq:
-        vista = vista[vista["TAQUILLA"].isin(f_taq)]
     if f_man:
         vista = vista[vista["MANILLA"].isin(f_man)]
     if f_cat:
@@ -602,7 +557,7 @@ def mostrar_modulo_tarifas(usuario_actual, hoy):
     c_sel, c_acciones = st.columns([3, 1.6], vertical_alignment="center")
     with c_sel:
         if fila is not None:
-            st.markdown(f"**Tarifa seleccionada:** {fila['ID']} · {fila['TAQUILLA']} · {fila['MANILLA']} · "
+            st.markdown(f"**Tarifa seleccionada:** {fila['ID']} · {fila['CATEGORIA']} · {fila['MANILLA']} · "
                         f"{fila['TIPO']} · {_pesos(fila['VALOR'])}")
         else:
             st.caption("☝️ Seleccione una tarifa en la tabla para administrarla.")
@@ -633,7 +588,6 @@ def mostrar_modulo_tarifas(usuario_actual, hoy):
     tabla = pd.DataFrame({
         "ID": vista["ID"],
         "CATEGORÍA": vista["CATEGORIA"],
-        "TAQUILLA": vista["TAQUILLA"],
         "MANILLA": vista["MANILLA"],
         "TIPO": vista["TIPO"],
         "VALOR": vista["VALOR"].map(_pesos),
