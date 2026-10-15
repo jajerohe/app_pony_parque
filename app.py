@@ -33,7 +33,7 @@ st.set_page_config(
     page_title="Pony Parque",
     page_icon=str(CARPETA_IMAGENES / "icono.png"),
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # ============================================================
@@ -69,133 +69,162 @@ header[data-testid="stHeader"] {
 # INICIO DE SESIÓN
 # ============================================================
 def mostrar_login():
-    """Muestra el inicio de sesión: marca a la izquierda y acceso a la derecha."""
+    """Inicio de sesión: logo arriba y tarjeta de acceso centrada sobre una
+    mancha suave, con el ícono circular sobre la tarjeta."""
+
+    # Mancha clara detrás de la tarjeta.
+    mancha = base64.b64encode(
+        b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 480">'
+        b'<path fill="#F3E8D6" d="M190 20c120-25 230 15 270 85 30 55 110 60 125 150 15 90-50 165-150 185'
+        b'-90 18-150-25-235-10C110 445 30 420 12 330 0 265 45 230 35 165 25 95 90 40 190 20z"/></svg>'
+    ).decode()
 
     st.markdown(
-        """
+        f"""
         <style>
-        [data-testid="stSidebar"] { display: none !important; }
-        .block-container, [data-testid="stMainBlockContainer"] {
-            padding: 0 !important;
+        /* ======================================================
+           PANTALLA DE LOGIN
+           ====================================================== */
+        [data-testid="stSidebar"] {{ display: none !important; }}
+        header[data-testid="stHeader"] {{ display: none !important; }}
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{ background: #FBF7EF !important; }}
+        .block-container, [data-testid="stMainBlockContainer"] {{
+            padding: 0 1rem !important;
             max-width: 100% !important;
-        }
-        div[data-testid="stElementContainer"]:has(style) { display: none; }
-        [data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"] { gap: 0; }
-        [data-testid="stForm"] [data-testid="stVerticalBlock"] { gap: 1rem; }
+        }}
+        /* Los bloques que solo traen estilos no deben ocupar espacio */
+        div[data-testid="stElementContainer"]:has(style) {{ display: none; }}
+        [data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"] {{ gap: 0; }}
 
-        div[data-testid="stHorizontalBlock"]:has(.pp-marca) { gap: 0 !important; min-height: 100vh; }
-        div[data-testid="stColumn"]:has(.pp-marca) {
-            background:
-                radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.85), transparent 40%),
-                linear-gradient(180deg, #CDEBFA 0%, #E9F6FD 45%, #EEF6DF 75%, #D7EBB4 100%);
-            border-right: 4px solid #F59E1B;
-        }
-        div[data-testid="stColumn"]:has(.pp-marca),
-        div[data-testid="stColumn"]:has(.pp-acceso) { min-height: 100vh; }
-        div[data-testid="stColumn"]:has(.pp-marca) > div,
-        div[data-testid="stColumn"]:has(.pp-acceso) > div {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        div[data-testid="stColumn"]:has(.pp-marca) > div { padding: 2rem 3.5rem; }
-        div[data-testid="stColumn"]:has(.pp-acceso) > div { padding: 2rem 1.5rem; }
+        .pp-login-logo {{ text-align: center; padding: 40px 0 0; }}
+        .pp-login-logo img {{ height: 130px; width: auto; max-width: 60%;
+            filter: drop-shadow(0 8px 14px rgba(74, 36, 18, 0.18)); }}
 
-        .pp-marca { text-align: center; }
-        .pp-marca img { display: block; margin: 0 auto; width: min(340px, 80%); height: auto; filter: drop-shadow(0 14px 22px rgba(74, 36, 18, .25)); }
-        .pp-marca p {
-            display: inline-block; color: #FFC629; background: #6B3416; font-weight: 800; font-size: 1.05rem;
-            letter-spacing: .04em; margin: 1.2rem 0 0; padding: .45rem 1.2rem; border-radius: 6px;
-            box-shadow: 0 4px 0 #4A2412;
-        }
-
-        .pp-acceso { text-align: center; }
-        .pp-acceso h3 { color: #4A2412; font-weight: 700; font-size: 1.75rem !important; margin: 0; padding: 0 0 .3rem; }
-        .pp-acceso p { color: #7A5C48; font-size: 1.05rem; margin: 0 0 1.4rem; }
-
-        div[data-testid="stColumn"]:has(.pp-acceso) [data-testid="stForm"] {
+        /* Zona con la mancha y la tarjeta centrada */
+        .st-key-login_zona {{
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 100px 0 80px;
+            background: url("data:image/svg+xml;base64,{mancha}") center / 100% auto no-repeat;
+        }}
+        .st-key-login_tarjeta {{
+            width: 100%;
+            max-width: 385px;
+            margin: 0 auto;
             background: #FFFFFF;
-            border: 1px solid #F1DFC4;
-            border-top: 4px solid #F59E1B;
-            border-radius: 14px;
-            box-shadow: 0 10px 30px rgba(74, 36, 18, 0.10);
-            padding: 1.6rem 1.6rem 1.2rem;
-        }
-        div[data-testid="stForm"] input:focus {
+            border-radius: 6px;
+            box-shadow: 0 4px 18px rgba(74, 36, 18, 0.08);
+            padding: 0 45px 35px;
+            overflow: visible;
+        }}
+        .pp-login-icono {{
+            width: 86px; height: 86px;
+            margin: -43px auto 22px;
+            border-radius: 50%;
+            background: linear-gradient(160deg, #FFC629 0%, #F59E1B 45%, #6B3416 100%);
+            box-shadow: 0 6px 16px rgba(107, 52, 22, 0.28);
+            display: flex; align-items: center; justify-content: center;
+        }}
+        .pp-login-titulo {{
+            text-align: center;
+            color: #4A2412;
+            font-size: 1.3rem;
+            font-weight: 700;
+            line-height: 1.3;
+            margin: 0 0 26px;
+        }}
+        .st-key-login_tarjeta [data-testid="stForm"] {{ border: none; padding: 0; }}
+        .st-key-login_tarjeta [data-testid="stForm"] [data-testid="stVerticalBlock"] {{ gap: 14px; }}
+        .st-key-login_tarjeta [data-testid="stTextInputRootElement"] {{
+            background: #FFFFFF !important;
+            border: 1px solid #D9CBB6 !important;
+            border-radius: 3px !important;
+        }}
+        .st-key-login_tarjeta [data-testid="stTextInput"] input {{
+            background: #FFFFFF !important;
+            min-height: 40px;
+            padding-left: 18px;
+            font-size: 0.9rem;
+        }}
+        .st-key-login_tarjeta [data-testid="stTextInputRootElement"]:focus-within {{
             border-color: #F59E1B !important;
             box-shadow: 0 0 0 1px #F59E1B !important;
-        }
-        div[data-testid="stFormSubmitButton"] button {
-            background: linear-gradient(90deg, #6B3416 0%, #8E4A1E 55%, #C8681A 100%) !important;
+        }}
+        .st-key-login_tarjeta div[data-testid="stFormSubmitButton"] button {{
+            background: #6B3416 !important;
             border: none !important;
             color: #FFFFFF !important;
-            border-radius: 8px !important;
-            min-height: 44px !important;
+            border-radius: 3px !important;
+            min-height: 36px !important;
             font-weight: 700 !important;
-            box-shadow: 0 4px 14px rgba(107, 52, 22, 0.28);
-        }
-        div[data-testid="stFormSubmitButton"] button:hover { filter: brightness(1.07); }
+            margin-top: 2px;
+        }}
+        .st-key-login_tarjeta div[data-testid="stFormSubmitButton"] button:hover {{ background: #4A2412 !important; }}
+        .st-key-login_tarjeta [data-testid="stAlert"] {{ margin-top: 12px; }}
 
-        .pp-pie { text-align: center; color: #7A5C48; font-size: .83rem; line-height: 1.5; margin-top: 1.8rem; }
-        .pp-pie p { margin: 0 0 .8rem; }
-        .pp-pie b { color: #4A2412; }
-        .pp-pie .firma { font-size: .78rem; letter-spacing: .02em; }
+        .pp-pie {{
+            text-align: center;
+            color: #8A7464;
+            font-size: 0.78rem;
+            line-height: 1.5;
+            padding: 0 0 28px;
+        }}
+        .pp-pie b {{ color: #6B3416; }}
 
-        @media (max-width: 640px) {
-            div[data-testid="stHorizontalBlock"]:has(.pp-marca),
-            div[data-testid="stColumn"]:has(.pp-marca),
-            div[data-testid="stColumn"]:has(.pp-acceso) { min-height: auto; }
-            div[data-testid="stColumn"]:has(.pp-marca) > div { padding: 2.5rem 1.5rem 2rem; }
-            div[data-testid="stColumn"]:has(.pp-acceso) > div { padding: 2rem 1rem; }
-        }
+        @media (max-width: 640px) {{
+            .pp-login-logo {{ padding-top: 24px; }}
+            .pp-login-logo img {{ height: 100px; }}
+            .st-key-login_zona {{ padding: 70px 0 50px; background-size: 140% auto; }}
+            .st-key-login_tarjeta {{ padding: 0 24px 28px; }}
+        }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    marca, acceso = st.columns(2)
+    st.markdown(
+        f'<div class="pp-login-logo"><img src="data:image/png;base64,{logo_base64()}" '
+        'alt="Pony Parque - Hotel Mesa de los Santos"></div>',
+        unsafe_allow_html=True
+    )
 
-    with marca:
-        st.markdown(
-            """
-            <div class="pp-marca">
-                <img src="data:image/png;base64,{logo}" alt="Pony Parque - Hotel Mesa de los Santos">
-                <p>SISTEMA DE GESTIÓN</p>
-            </div>
-            """.format(logo=logo_base64()),
-            unsafe_allow_html=True
-        )
+    with st.container(key="login_zona"):
+        with st.container(key="login_tarjeta"):
+            st.markdown(
+                """
+                <div class="pp-login-icono">
+                    <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="#FFFFFF"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4.5" y="10.5" width="15" height="10" rx="2" fill="rgba(255,255,255,.18)"/>
+                        <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>
+                        <circle cx="12" cy="15.5" r="1.4" fill="#FFFFFF" stroke="none"/>
+                    </svg>
+                </div>
+                <div class="pp-login-titulo">Inicia sesión en el<br>sistema de gestión</div>
+                """,
+                unsafe_allow_html=True
+            )
 
-    with acceso:
-        st.markdown(
-            """
-            <div class="pp-acceso">
-                <h3>Bienvenido de nuevo</h3>
-                <p>Ingresa con tus credenciales para continuar</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-        _, centro, _ = st.columns([0.12, 0.76, 0.12])
-        with centro:
-            with st.form("form_login"):
-                email = st.text_input("Correo electrónico", placeholder="usuario@dominio.com")
-                password = st.text_input("Contraseña", type="password", placeholder="Ingrese su contraseña")
+            with st.form("form_login", border=False):
+                email = st.text_input("Correo electrónico", placeholder="Correo electrónico",
+                                      label_visibility="collapsed")
+                password = st.text_input("Contraseña", type="password", placeholder="Contraseña",
+                                         label_visibility="collapsed")
                 ingresar = st.form_submit_button("Ingresar", type="primary", width="stretch")
 
-        st.markdown(
-            """
-            <div class="pp-pie">
-                <p><b>Pony Parque</b> · Sistema de gestión<br>
-                Acceso protegido mediante autenticación segura.</p>
-                <p class="firma">Powered by <b>JAJEROHE Systems</b></p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+            mensajes = st.container()
 
+    st.markdown(
+        """
+        <div class="pp-pie">
+            <b>Pony Parque</b> · Sistema de gestión<br>
+            Powered by <b>JAJEROHE Systems</b>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    with mensajes:
         if ingresar:
             email = email.strip()
 
@@ -263,7 +292,6 @@ html,body,[data-testid="stAppViewContainer"]{background:var(--bg)!important}
 [data-testid="stAppViewContainer"]>.main{background:var(--bg)!important}
 .block-container{padding:1.05rem 1.45rem 2rem!important;max-width:100%!important}
 section[data-testid="stSidebar"]{background:#fff!important;border-right:3px solid var(--acento)!important}
-section[data-testid="stSidebar"][aria-expanded="true"]{min-width:235px!important;width:235px!important}
 section[data-testid="stSidebar"]>div{padding:.8rem .8rem 1rem!important}
 .pp-side-brand{padding:0 7px 12px;border-bottom:1px solid #f3e6d3;margin-bottom:10px;text-align:center}
 .pp-side-logo{width:150px;max-width:100%;height:auto;filter:drop-shadow(0 6px 10px rgba(74,36,18,.18))}
@@ -304,103 +332,186 @@ div[role="dialog"] div[data-testid="stForm"]{border-color:var(--border)!importan
 .st-key-btn_usr_estado div[data-testid="stButton"] button,.st-key-btn_taq_estado div[data-testid="stButton"] button,.st-key-btn_man_estado div[data-testid="stButton"] button,.st-key-btn_tar_estado div[data-testid="stButton"] button,.st-key-btn_cat_estado div[data-testid="stButton"] button,.st-key-btn_tip_estado div[data-testid="stButton"] button,[class*="st-key-btn_warn_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_warn_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#ffc629,#f08a1c)!important}
 .st-key-btn_usr_clave div[data-testid="stButton"] button,.st-key-btn_taq_asignar div[data-testid="stButton"] button,.st-key-btn_tar_importar div[data-testid="stButton"] button,[class*="st-key-btn_neutral_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_cancel_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_cancel_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#C3C5C6,#403833)!important}
 .st-key-btn_usr_eliminar div[data-testid="stButton"] button,.st-key-btn_taq_eliminar div[data-testid="stButton"] button,.st-key-btn_man_eliminar div[data-testid="stButton"] button,.st-key-btn_tar_eliminar div[data-testid="stButton"] button,.st-key-btn_cat_eliminar div[data-testid="stButton"] button,.st-key-btn_tip_eliminar div[data-testid="stButton"] button,[class*="st-key-btn_danger_"] div[data-testid="stFormSubmitButton"] button,[class*="st-key-btn_danger_"] div[data-testid="stButton"] button{background:linear-gradient(160deg,#e5533d,#8e1c1c)!important}
-@media(max-width:900px){.block-container{padding:.7rem .75rem 1.5rem!important}section[data-testid="stSidebar"][aria-expanded="true"]{min-width:200px!important;width:200px!important}.pp-topbar{min-height:58px}}
+@media(max-width:900px){.block-container{padding:.7rem .75rem 1.5rem!important}.pp-topbar{min-height:58px}}
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# MENÚ LATERAL DESPLEGABLE
+# VENTANA: BARRA SUPERIOR FIJA Y MENÚ LATERAL CONTRAÍBLE
 # ============================================================
-# El menú arranca cerrado y se abre con el botón ☰ de la esquina superior
-# izquierda. Se abre flotando sobre el contenido (no lo empuja ni lo
-# encoge) y se cierra al elegir una opción o al hacer clic fuera de él.
-st.markdown("""
+# Una barra fija a todo el ancho (logo, nombre del sistema, usuario y cerrar
+# sesión) y, debajo, el menú lateral siempre visible, que se contrae con « a
+# una franja de íconos por grupo (cada ícono abre un panel con sus opciones)
+# y se expande con ».
+ALTO_BARRA = 56
+menu_colapsado = st.session_state.get("menu_colapsado", False)
+ANCHO_MENU = 64 if menu_colapsado else 240
+
+st.markdown(f"""
 <style>
-[data-testid="stExpandSidebarButton"]{visibility:visible!important;position:fixed!important;top:29px;left:22px;z-index:1000002;width:40px!important;height:40px!important;border-radius:8px!important;background:linear-gradient(160deg,#f59e1b,#6b3416)!important;box-shadow:0 2px 6px rgba(74,36,18,.3)!important;display:flex!important;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s}
-[data-testid="stExpandSidebarButton"]:hover{transform:scale(1.06);box-shadow:0 3px 10px rgba(74,36,18,.4)!important}
-[data-testid="stExpandSidebarButton"] span{display:none!important}
-[data-testid="stExpandSidebarButton"]::before{content:"";width:18px;height:2px;border-radius:2px;background:#fff;box-shadow:0 -6px 0 #fff,0 6px 0 #fff}
-section[data-testid="stSidebar"]{position:fixed!important;top:0;left:0;height:100vh!important;z-index:1000001!important}
-section[data-testid="stSidebar"][aria-expanded="true"]{box-shadow:6px 0 24px rgba(74,36,18,.18)!important}
-[data-testid="stSidebarResizeHandle"]{display:none!important}
-[data-testid="stSidebarCollapseButton"]{display:flex!important}
-.pp-topbar:not(.pp-dialog-header){margin-left:52px}
-/* Los bloques que solo traen estilos o scripts no deben ocupar espacio */
-[data-testid="stMainBlockContainer"] div[data-testid="stElementContainer"]:has(style),
-[data-testid="stMainBlockContainer"] div[data-testid="stElementContainer"]:has(script){display:none}
+/* Barra superior fija */
+.pp-barra{{position:fixed;top:0;left:0;right:0;height:{ALTO_BARRA}px;z-index:1000003;display:flex;align-items:center;
+  background:linear-gradient(90deg,#4a2412 0%,#6b3416 55%,#8e4a1e 100%);box-shadow:inset 0 -3px 0 #f59e1b,0 2px 8px rgba(74,36,18,.2)}}
+.pp-barra-logo{{width:240px;height:100%;flex:0 0 240px;background:#fff;display:flex;align-items:center;justify-content:center;
+  border-bottom:3px solid #f59e1b;box-sizing:border-box}}
+.pp-barra-logo img{{height:46px;width:auto}}
+.pp-barra-nombre{{color:#fff;font-size:16px;font-weight:800;letter-spacing:.2px;padding-left:22px;white-space:nowrap}}
+.pp-barra-nombre span{{display:block;color:#ffe2b0;font-size:10px;font-weight:600;margin-top:1px}}
+.pp-barra-acciones{{margin-left:auto;display:flex;align-items:center;gap:12px;padding-right:18px}}
+.pp-barra .pp-user-pill{{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff}}
+.pp-barra .pp-logout{{width:34px;height:34px;background:rgba(255,255,255,.14);box-shadow:none}}
+.pp-barra .pp-logout:hover{{background:rgba(255,255,255,.26)}}
+
+/* Menú lateral fijo debajo de la barra */
+section[data-testid="stSidebar"],section[data-testid="stSidebar"][aria-expanded]{{position:fixed!important;top:{ALTO_BARRA}px!important;left:0!important;
+  height:calc(100vh - {ALTO_BARRA}px)!important;width:{ANCHO_MENU}px!important;min-width:{ANCHO_MENU}px!important;max-width:{ANCHO_MENU}px!important;
+  transform:none!important;visibility:visible!important;z-index:1000002!important;background:#fbf4e8!important;border-right:1px solid #efe2cf!important;
+  box-shadow:none!important;transition:width .15s,min-width .15s}}
+section[data-testid="stSidebar"]>div{{padding:.5rem .55rem 1rem!important}}
+[data-testid="stSidebarHeader"],[data-testid="stSidebarCollapseButton"],[data-testid="stExpandSidebarButton"],
+[data-testid="stSidebarResizeHandle"]{{display:none!important}}
+[data-testid="stSidebarUserContent"]{{padding:0!important}}
+[data-testid="stMain"]{{margin-left:{ANCHO_MENU}px!important;width:calc(100% - {ANCHO_MENU}px)!important;
+  max-width:calc(100% - {ANCHO_MENU}px)!important;transition:margin-left .15s}}
+.block-container{{padding-top:{ALTO_BARRA + 18}px!important}}
+
+/* Botón « / » */
+.st-key-menu_toggle{{display:flex;justify-content:{'center' if menu_colapsado else 'flex-end'}}}
+.st-key-menu_toggle div[data-testid="stButton"]>button{{width:34px!important;height:30px!important;min-height:30px!important;padding:0!important;
+  border:1px solid #e8d5b8!important;border-radius:5px!important;background:#fff!important;color:#6b3416!important}}
+.st-key-menu_toggle div[data-testid="stButton"]>button:hover{{background:#fff3df!important}}
+
+/* Opciones del menú con ícono */
+[class*="st-key-pp_menu"] div[data-testid="stButton"]>button span[data-testid="stIconMaterial"]{{font-size:19px!important;color:#7a5c48}}
+[class*="st-key-pp_menu"] div[data-testid="stButton"]>button[kind="primary"] span[data-testid="stIconMaterial"]{{color:#fff}}
+.pp-menu-section{{margin:16px 9px 6px}}
+
+/* Título de la página (debajo de la barra) */
+.pp-titulo-pagina{{color:#4a2412;font-size:19px;font-weight:800;padding:0 0 8px;margin-bottom:12px;border-bottom:1px solid #e6d4bb}}
 </style>
 """, unsafe_allow_html=True)
-st.html("""
+
+if menu_colapsado:
+    # Franja de solo íconos: un ícono por grupo que abre su panel flotante.
+    st.markdown("""
+<style>
+[class*="st-key-grupo_"]{display:flex;justify-content:center;margin-top:6px}
+[class*="st-key-grupo_"] [data-testid="stPopover"],[class*="st-key-grupo_"] [data-testid="stPopover"]>div{width:44px!important}
+[class*="st-key-grupo_"] button{width:44px!important;height:42px!important;min-height:42px!important;padding:0!important;
+  border:none!important;border-radius:7px!important;background:transparent!important;color:#7a5c48!important;box-shadow:none!important}
+[class*="st-key-grupo_"] button:hover{background:#f5e6cf!important}
+[class*="st-key-grupo_"] button[kind="primary"]{background:linear-gradient(90deg,#6b3416,#8e4a1e)!important;color:#fff!important}
+[class*="st-key-grupo_"] button span[data-testid="stIconMaterial"]{font-size:23px!important;margin:0!important}
+[class*="st-key-grupo_"] button div[aria-hidden="true"]{display:none!important}
+/* El panel se abre a la derecha del ícono (Streamlit lo ubica debajo). */
+[data-testid="stPopoverBody"]:has(.pp-panel-titulo){margin-left:51px!important;margin-top:-46px!important;
+  min-width:250px;border:1px solid #efe2cf;box-shadow:4px 6px 18px rgba(74,36,18,.16)!important}
+.pp-panel-titulo{color:#6b3416;font-size:14px;font-weight:800;padding:2px 2px 8px;margin-bottom:4px;border-bottom:1px solid #f1e4d0}
+</style>
+""", unsafe_allow_html=True)
+    # Al elegir una opción del panel, se cierra el panel.
+    st.html("""
 <script>
 (() => {
-    if (window.menuDesplegable) return;
-    window.menuDesplegable = true;
-    const cerrar = () => {
-        const menu = document.querySelector('section[data-testid="stSidebar"]');
-        const boton = document.querySelector('[data-testid="stSidebarCollapseButton"] button');
-        if (menu && menu.getAttribute("aria-expanded") === "true" && boton) boton.click();
-    };
+    if (window.ppPanelMenu) return;
+    window.ppPanelMenu = true;
     document.addEventListener("click", (e) => {
-        const menu = document.querySelector('section[data-testid="stSidebar"]');
-        if (!menu || menu.getAttribute("aria-expanded") !== "true") return;
-        if (e.target.closest('[data-testid="stExpandSidebarButton"]')) return;
-        if (!menu.contains(e.target)) return cerrar();
-        // Opción del menú elegida: cerrar después de que Streamlit la reciba.
-        if (e.target.closest('[class*="st-key-pp_menu"] button')) setTimeout(cerrar, 150);
+        if (!e.target.closest('[data-testid="stPopoverBody"] [class*="st-key-pp_menu"] button')) return;
+        setTimeout(() => {
+            const abierto = document.querySelector('[class*="st-key-grupo_"] button[aria-expanded="true"]');
+            if (abierto) abierto.click();
+        }, 120);
     }, true);
 })();
 </script>
 """, unsafe_allow_javascript=True)
 
-# ============================================================
-# SIDEBAR
-# ============================================================
+st.markdown("""
+<style>
+/* Los bloques que solo traen estilos o scripts no deben ocupar espacio */
+[data-testid="stMainBlockContainer"] div[data-testid="stElementContainer"]:has(style),
+[data-testid="stMainBlockContainer"] div[data-testid="stElementContainer"]:has(script),
+[data-testid="stSidebarUserContent"] div[data-testid="stElementContainer"]:has(style){display:none}
+@media(max-width:900px){.pp-barra-nombre span,.pp-barra .pp-user-pill{display:none}}
+@media(max-width:640px){.pp-barra-logo{width:120px;flex-basis:120px}.pp-barra-nombre{display:none}}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown(f"""
+<div class="pp-barra">
+  <div class="pp-barra-logo"><img src="data:image/png;base64,{logo_base64()}" alt="Pony Parque"></div>
+  <div class="pp-barra-nombre">Pony Parque<span>Sistema de gestión · Hotel Mesa de los Santos</span></div>
+  <div class="pp-barra-acciones">
+    <div class="pp-user-pill">👤 {html.escape(nombre_actual or usuario_actual)} · Usuario: {usuario_actual} · Perfil: {perfil_actual or 'Sin perfil'}</div>
+    <a class="pp-logout" href="?logout=1" target="_self" title="Cerrar sesión" aria-label="Cerrar sesión"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h3a1 1 0 0 1 1 1v3M18 16v3a1 1 0 0 1-1 1h-3"/><path d="M5 4.5 11 3a1 1 0 0 1 1.2 1v16a1 1 0 0 1-1.2 1L5 19.5z" fill="#fff"/><path d="M14.5 12H22M19 9l3 3-3 3"/></svg></a>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 with st.sidebar:
-    st.markdown(
-        f'<div class="pp-side-brand"><img class="pp-side-logo" src="data:image/png;base64,{logo_base64()}" alt="Pony Parque">'
-        '<div class="pp-side-title">Sistema de gestión</div></div>',
-        unsafe_allow_html=True
-    )
+    with st.container(key="menu_toggle"):
+        if st.button(
+            "",
+            icon=":material/keyboard_double_arrow_right:" if menu_colapsado else ":material/keyboard_double_arrow_left:",
+            key="btn_menu_toggle",
+            help="Expandir menú" if menu_colapsado else "Contraer menú",
+        ):
+            st.session_state["menu_colapsado"] = not menu_colapsado
+            st.rerun()
 
     def mostrar_menu(clave_menu, opciones_menu):
         with st.container(key=clave_menu):
-            for clave_pagina, etiqueta in opciones_menu:
+            for clave_pagina, icono, etiqueta in opciones_menu:
                 if st.button(
                     etiqueta,
+                    icon=icono,
                     key=f"menu_{clave_pagina}",
                     type="primary" if pagina_actual == clave_pagina else "secondary",
-                    width="stretch"
+                    width="stretch",
                 ):
                     st.session_state["pagina_actual"] = clave_pagina
                     st.rerun()
 
-    # Cada módulo nuevo se agrega a este menú y a TITULOS_PAGINA.
-    st.markdown('<div class="pp-menu-section">General</div>', unsafe_allow_html=True)
-    mostrar_menu("pp_menu", [
-        ("inicio", "🏠  Inicio"),
-        ("mi_cuenta", "🔑  Mi cuenta"),
-    ])
-
-    st.markdown('<div class="pp-menu-section">Operación</div>', unsafe_allow_html=True)
-    mostrar_menu("pp_menu_operacion", [
-        ("inventario_inicial", "📦  Inventario inicial"),
-        ("ventas", "🧾  Ventas del día"),
-        ("consolidado_inventario", "📊  Consolidado inventario"),
-    ])
-
+    # Cada módulo nuevo se agrega a un grupo del menú y a TITULOS_PAGINA.
+    # (clave, título, ícono del grupo, clave del contenedor, opciones)
+    grupos = [
+        ("general", "General", ":material/home:", "pp_menu", [
+            ("inicio", ":material/home:", "Inicio"),
+            ("mi_cuenta", ":material/key:", "Mi cuenta"),
+        ]),
+        ("operacion", "Operación", ":material/storefront:", "pp_menu_operacion", [
+            ("inventario_inicial", ":material/inventory_2:", "Inventario inicial"),
+            ("ventas", ":material/receipt_long:", "Ventas del día"),
+            ("consolidado_inventario", ":material/summarize:", "Consolidado inventario"),
+        ]),
+    ]
     if es_administrador:
-        st.markdown('<div class="pp-menu-section">Reportes</div>', unsafe_allow_html=True)
-        mostrar_menu("pp_menu_reportes", [
-            ("balance", "📈  Balance"),
-            ("inventario_general", "🏬  Inventario general"),
-        ])
+        grupos.append(("reportes", "Reportes", ":material/bar_chart:", "pp_menu_reportes", [
+            ("balance", ":material/trending_up:", "Balance"),
+            ("inventario_general", ":material/warehouse:", "Inventario general"),
+        ]))
+        grupos.append(("admin", "Administración", ":material/admin_panel_settings:", "pp_menu_admin", [
+            ("usuarios", ":material/group:", "Usuarios"),
+            ("taquillas", ":material/confirmation_number:", "Taquillas"),
+            ("manillas", ":material/style:", "Manillas"),
+            ("tarifas", ":material/payments:", "Tarifas"),
+            ("categorias", ":material/sell:", "Categorías"),
+            ("tipos_tarifa", ":material/bookmark:", "Tipos de tarifa"),
+        ]))
+    for clave, titulo, icono, clave_menu, opciones in grupos:
+        if menu_colapsado:
+            activo = any(pagina_actual == o[0] for o in opciones)
+            with st.popover("", icon=icono, help=titulo, key=f"grupo_{clave}",
+                            type="primary" if activo else "secondary"):
+                st.markdown(f'<div class="pp-panel-titulo">{titulo}</div>', unsafe_allow_html=True)
+                mostrar_menu(clave_menu, opciones)
+        else:
+            st.markdown(f'<div class="pp-menu-section">{titulo}</div>', unsafe_allow_html=True)
+            mostrar_menu(clave_menu, opciones)
 
-        st.markdown('<div class="pp-menu-section">Administración</div>', unsafe_allow_html=True)
-        mostrar_menu("pp_menu_admin", [("usuarios", "👥  Usuarios"), ("taquillas", "🎟️  Taquillas"), ("manillas", "🎫  Manillas"), ("tarifas", "💲  Tarifas"),
-            ("categorias", "🏷️  Categorías"), ("tipos_tarifa", "🔖  Tipos de tarifa")])
 
 # ============================================================
-# ENCABEZADO INTERNO
+# TÍTULO DE LA PÁGINA
 # ============================================================
 TITULOS_PAGINA = {
     "inicio": "Inicio",
@@ -417,13 +528,10 @@ TITULOS_PAGINA = {
     "inventario_general": "Inventario General",
     "consolidado_inventario": "Consolidado de Inventario",
 }
-
-st.markdown(f"""
-<div class="pp-topbar"><div><div class="pp-top-title">{TITULOS_PAGINA.get(pagina_actual, 'Inicio')}</div>
-<div class="pp-top-subtitle">Pony Parque · Hotel Mesa de los Santos</div></div>
-<div class="pp-top-actions"><div class="pp-user-pill">👤 {html.escape(nombre_actual or usuario_actual)} · Usuario: {usuario_actual} · Perfil: {perfil_actual or 'Sin perfil'}</div>
-<a class="pp-logout" href="?logout=1" target="_self" title="Cerrar sesión" aria-label="Cerrar sesión"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h3a1 1 0 0 1 1 1v3M18 16v3a1 1 0 0 1-1 1h-3"/><path d="M5 4.5 11 3a1 1 0 0 1 1.2 1v16a1 1 0 0 1-1.2 1L5 19.5z" fill="#fff"/><path d="M14.5 12H22M19 9l3 3-3 3"/></svg></a></div></div>
-""", unsafe_allow_html=True)
+st.markdown(
+    f'<div class="pp-titulo-pagina">{TITULOS_PAGINA.get(pagina_actual, "Inicio")}</div>',
+    unsafe_allow_html=True
+)
 
 # ============================================================
 # PÁGINAS
