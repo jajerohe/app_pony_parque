@@ -8,7 +8,7 @@ Sistema del **Pony Parque (Hotel Mesa de los Santos)** en Streamlit, con la base
 |---|---|---|
 | **Inicio** | Todos | Bienvenida y accesos a los módulos. |
 | **Mi cuenta** | Todos | Cambiar la propia contraseña. |
-| **Ventas del día** | Todos | Por fecha y taquilla, cantidad vendida de cada tarifa vigente, con el cuadro «Caja general taquilla del día» (categoría, manilla, tipo, cant, valor, total y subtotales). No deja vender más que el inventario inicial. Pestaña **Inventario del día**: inicial, vendidas y final. |
+| **Distribuir ventas por día** | Todos | Por fecha y taquilla, cantidad vendida de cada tarifa vigente, con el cuadro «Caja general taquilla del día» (categoría, manilla, tipo, cant, valor, total y subtotales). No deja vender más que el inventario inicial. Pestaña **Inventario del día**: inicial, vendidas y final. |
 | **Consolidado inventario** | Todos | Solo lectura. Por día, una planilla por taquilla (VENDIDAS, CONCEPTO, INICIAL, FINAL), indicadores del día y el total por concepto de todas las taquillas. Vendidas y Final se llenarán con los módulos de ventas e inventario. |
 | **Inicializar taquillas por día** | Todos | Por fecha y taquilla, cargar la cantidad inicial de cada manilla asignada. Muestra qué taquillas ya están inicializadas y su total. El operador solo carga el día de hoy; el administrador puede corregir otras fechas. |
 | **Cerrar taquillas por día** | Todos | Por fecha y taquilla, cargar la cantidad final de cada manilla. El inicial viene de Inicializar taquillas por día y no se modifica; VENDIDAS = INICIAL - FINAL se calcula al digitar. El final no puede superar al inicial. Muestra el estado de cierre de todas las taquillas. El operador solo cierra el día de hoy; el administrador puede corregir otras fechas. |
