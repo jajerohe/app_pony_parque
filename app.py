@@ -20,6 +20,7 @@ from taquillas import mostrar_modulo_taquillas
 from tipos_tarifa import mostrar_modulo_tipos_tarifa
 from usuarios import mostrar_mi_cuenta, mostrar_modulo_usuarios
 from ventas import mostrar_modulo_ventas
+from envios import mostrar_envio_pendiente
 from marca import DESCRIPCION_SISTEMA, NOMBRE_SISTEMA, TITULO_PESTANA, fijar_titulo_pestana
 
 ZONA_HORARIA = ZoneInfo("America/Bogota")
@@ -544,6 +545,9 @@ st.markdown(
 # PÁGINAS
 # ============================================================
 hoy = datetime.now(ZONA_HORARIA).date()
+
+# Vista previa del correo pendiente (por ejemplo, el de bienvenida) y resultado del envío.
+mostrar_envio_pendiente()
 
 try:
     if pagina_actual == "usuarios" and es_administrador:
