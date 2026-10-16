@@ -9,7 +9,7 @@ from usuarios import ficha, seccion
 
 def mostrar_inicio(nombre_actual, usuario_actual, perfil_actual, hoy):
     seccion(f"👋 Hola, {html.escape(nombre_actual or usuario_actual)}",
-            "Bienvenido al sistema de gestión del Pony Parque.")
+            "Bienvenido a Ponycash: caja diaria, terceros e inventario de manillas del Pony Parque.")
     ficha([
         ("Usuario", usuario_actual),
         ("Perfil", perfil_actual),

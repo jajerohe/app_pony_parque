@@ -27,11 +27,11 @@ CARPETA_IMAGENES = Path(__file__).parent / "assets"
 
 @st.cache_data
 def logo_base64():
-    return base64.b64encode((CARPETA_IMAGENES / "logo.png").read_bytes()).decode()
+    return base64.b64encode((CARPETA_IMAGENES / "logo_ponycash.png").read_bytes()).decode()
 
 
 st.set_page_config(
-    page_title="Pony Parque",
+    page_title="Ponycash",
     page_icon=str(CARPETA_IMAGENES / "icono.png"),
     layout="wide",
     initial_sidebar_state="expanded"
@@ -98,8 +98,8 @@ def mostrar_login():
         [data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"] {{ gap: 0; }}
 
         .pp-login-logo {{ text-align: center; padding: 40px 0 0; }}
-        .pp-login-logo img {{ height: 130px; width: auto; max-width: 60%;
-            filter: drop-shadow(0 8px 14px rgba(74, 36, 18, 0.18)); }}
+        .pp-login-logo img {{ width: 360px; height: auto; max-width: 80%;
+            filter: drop-shadow(0 6px 10px rgba(74, 36, 18, 0.15)); }}
 
         /* Zona con la mancha y la tarjeta centrada */
         .st-key-login_zona {{
@@ -174,7 +174,7 @@ def mostrar_login():
 
         @media (max-width: 640px) {{
             .pp-login-logo {{ padding-top: 24px; }}
-            .pp-login-logo img {{ height: 100px; }}
+            .pp-login-logo img {{ width: 260px; }}
             .st-key-login_zona {{ padding: 70px 0 50px; background-size: 140% auto; }}
             .st-key-login_tarjeta {{ padding: 0 24px 28px; }}
         }}
@@ -185,7 +185,7 @@ def mostrar_login():
 
     st.markdown(
         f'<div class="pp-login-logo"><img src="data:image/png;base64,{logo_base64()}" '
-        'alt="Pony Parque - Hotel Mesa de los Santos"></div>',
+        'alt="Ponycash"></div>',
         unsafe_allow_html=True
     )
 
@@ -218,7 +218,7 @@ def mostrar_login():
     st.markdown(
         """
         <div class="pp-pie">
-            <b>Pony Parque</b> · Sistema de gestión<br>
+            <b>Ponycash</b> - Caja diaria · Terceros · Inventario de manillas<br>
             Powered by <b>JAJEROHE Systems</b>
         </div>
         """,
@@ -355,7 +355,7 @@ st.markdown(f"""
   background:linear-gradient(90deg,#4a2412 0%,#6b3416 55%,#8e4a1e 100%);box-shadow:inset 0 -3px 0 #f59e1b,0 2px 8px rgba(74,36,18,.2)}}
 .pp-barra-logo{{width:240px;height:100%;flex:0 0 240px;background:#fff;display:flex;align-items:center;justify-content:center;
   border-bottom:3px solid #f59e1b;box-sizing:border-box}}
-.pp-barra-logo img{{height:46px;width:auto}}
+.pp-barra-logo img{{width:190px;height:auto;max-height:46px}}
 .pp-barra-nombre{{color:#fff;font-size:16px;font-weight:800;letter-spacing:.2px;padding-left:22px;white-space:nowrap}}
 .pp-barra-nombre span{{display:block;color:#ffe2b0;font-size:10px;font-weight:600;margin-top:1px}}
 .pp-barra-acciones{{margin-left:auto;display:flex;align-items:center;gap:12px;padding-right:18px}}
@@ -440,8 +440,8 @@ st.markdown("""
 
 st.markdown(f"""
 <div class="pp-barra">
-  <div class="pp-barra-logo"><img src="data:image/png;base64,{logo_base64()}" alt="Pony Parque"></div>
-  <div class="pp-barra-nombre">Pony Parque<span>Sistema de gestión · Hotel Mesa de los Santos</span></div>
+  <div class="pp-barra-logo"><img src="data:image/png;base64,{logo_base64()}" alt="Ponycash"></div>
+  <div class="pp-barra-nombre">Ponycash<span>Caja diaria · Terceros · Inventario de manillas</span></div>
   <div class="pp-barra-acciones">
     <div class="pp-user-pill">👤 {html.escape(nombre_actual or usuario_actual)} · Usuario: {usuario_actual} · Perfil: {perfil_actual or 'Sin perfil'}</div>
     <a class="pp-logout" href="?logout=1" target="_self" title="Cerrar sesión" aria-label="Cerrar sesión"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h3a1 1 0 0 1 1 1v3M18 16v3a1 1 0 0 1-1 1h-3"/><path d="M5 4.5 11 3a1 1 0 0 1 1.2 1v16a1 1 0 0 1-1.2 1L5 19.5z" fill="#fff"/><path d="M14.5 12H22M19 9l3 3-3 3"/></svg></a>

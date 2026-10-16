@@ -1,5 +1,5 @@
 """
-Correo de bienvenida a los usuarios nuevos del sistema Pony Parque.
+Correo de bienvenida a los usuarios nuevos de Ponycash (Pony Parque).
 
 Se usa un servidor SMTP configurado en los secretos de Streamlit:
 
@@ -24,11 +24,11 @@ from pathlib import Path
 
 import streamlit as st
 
-NOMBRE_SISTEMA = "Pony Parque"
-DESCRIPCION_SISTEMA = "Sistema de gestión · Hotel Mesa de los Santos"
-APP_URL_DEFECTO = "https://ponyparque.streamlit.app"
-LOGO = Path(__file__).parent / "assets" / "logo_correo.png"
-CID_LOGO = "logo_ponyparque"
+NOMBRE_SISTEMA = "Ponycash"
+DESCRIPCION_SISTEMA = "Caja diaria · Terceros · Inventario de manillas · Pony Parque"
+APP_URL_DEFECTO = "https://appponyparque.streamlit.app"
+LOGO = Path(__file__).parent / "assets" / "logo_correo_ponycash.png"
+CID_LOGO = "logo_ponycash"
 
 # Paleta del logo, la misma de la aplicación.
 CAFE_OSCURO = "#4a2412"
@@ -87,7 +87,7 @@ def _plantilla(titulo, cuerpo):
 
   <tr><td style="height:6px;background:linear-gradient(90deg,{AMARILLO},{NARANJA},{CAFE});background-color:{NARANJA};font-size:0;line-height:0;">&nbsp;</td></tr>
   <tr><td align="center" style="padding:26px 24px 10px;">
-    <img src="cid:{CID_LOGO}" width="170" alt="{NOMBRE_SISTEMA}" style="display:block;border:0;width:170px;height:auto;">
+    <img src="cid:{CID_LOGO}" width="220" alt="{NOMBRE_SISTEMA}" style="display:block;border:0;width:220px;height:auto;">
   </td></tr>
   <tr><td align="center" style="padding:0 24px 22px;">
     <div style="color:{CAFE};font-size:22px;font-weight:800;">{titulo}</div>
