@@ -108,7 +108,7 @@ def encabezado_ventana(titulo):
     st.markdown(
         f'''<div class="pp-topbar pp-dialog-header"><div>
         <div class="pp-top-title">{titulo}</div>
-        <div class="pp-top-subtitle">Pony Parque · Hotel Mesa de los Santos</div>
+        <div class="pp-top-subtitle">Ponycash · Pony Parque · Hotel Mesa de los Santos</div>
         </div></div>''',
         unsafe_allow_html=True
     )
