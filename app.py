@@ -97,8 +97,8 @@ def mostrar_login():
         div[data-testid="stElementContainer"]:has(style) {{ display: none; }}
         [data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"] {{ gap: 0; }}
 
-        .pp-login-logo {{ text-align: center; padding: 40px 0 0; }}
-        .pp-login-logo img {{ width: 360px; height: auto; max-width: 80%;
+        .pp-login-logo {{ text-align: center; padding: 64px 0 0; }}
+        .pp-login-logo img {{ width: 150px; height: auto; max-width: 50%;
             filter: drop-shadow(0 6px 10px rgba(74, 36, 18, 0.15)); }}
 
         /* Zona con la mancha y la tarjeta centrada */
@@ -173,8 +173,7 @@ def mostrar_login():
         .pp-pie b {{ color: #6B3416; }}
 
         @media (max-width: 640px) {{
-            .pp-login-logo {{ padding-top: 24px; }}
-            .pp-login-logo img {{ width: 260px; }}
+            .pp-login-logo {{ padding-top: 36px; }}
             .st-key-login_zona {{ padding: 70px 0 50px; background-size: 140% auto; }}
             .st-key-login_tarjeta {{ padding: 0 24px 28px; }}
         }}
@@ -355,7 +354,7 @@ st.markdown(f"""
   background:linear-gradient(90deg,#4a2412 0%,#6b3416 55%,#8e4a1e 100%);box-shadow:inset 0 -3px 0 #f59e1b,0 2px 8px rgba(74,36,18,.2)}}
 .pp-barra-logo{{width:240px;height:100%;flex:0 0 240px;background:#fff;display:flex;align-items:center;justify-content:center;
   border-bottom:3px solid #f59e1b;box-sizing:border-box}}
-.pp-barra-logo img{{width:190px;height:auto;max-height:46px}}
+.pp-barra-logo img{{height:30px;width:auto}}
 .pp-barra-nombre{{color:#fff;font-size:16px;font-weight:800;letter-spacing:.2px;padding-left:22px;white-space:nowrap}}
 .pp-barra-nombre span{{display:block;color:#ffe2b0;font-size:10px;font-weight:600;margin-top:1px}}
 .pp-barra-acciones{{margin-left:auto;display:flex;align-items:center;gap:12px;padding-right:18px}}
@@ -434,7 +433,7 @@ st.markdown("""
 [data-testid="stMainBlockContainer"] div[data-testid="stElementContainer"]:has(script),
 [data-testid="stSidebarUserContent"] div[data-testid="stElementContainer"]:has(style){display:none}
 @media(max-width:900px){.pp-barra-nombre span,.pp-barra .pp-user-pill{display:none}}
-@media(max-width:640px){.pp-barra-logo{width:120px;flex-basis:120px}.pp-barra-nombre{display:none}}
+@media(max-width:640px){.pp-barra-logo{width:140px;flex-basis:140px}.pp-barra-logo img{height:24px}.pp-barra-nombre{display:none}}
 </style>
 """, unsafe_allow_html=True)
 
