@@ -1,10 +1,10 @@
 """Distribuir ventas por día.
 
 Las manillas vendidas en el día salen del cierre de taquillas: por cada manilla,
-la suma de INICIAL - FINAL de todas las taquillas cerradas. Ese total se carga
-primero a la tarifa plena de la manilla y luego se distribuye entre sus tarifas
-(convenios, descuentos, cortesías...). Lo guardado alimenta el Balance y el
-inventario general.
+la suma de INICIAL - FINAL de todas las taquillas cerradas. Ese total se reparte
+entre las tarifas de la manilla: se digitan los convenios, descuentos,
+cortesías..., y la tarifa plena se calcula sola (VENDIDAS menos lo demás). Lo
+guardado alimenta el Balance y el inventario general.
 """
 
 import unicodedata
@@ -103,20 +103,30 @@ def _tarifa_plena(tarifas):
     return candidatas.sort_values(["ID_CATEGORIA", "VALOR"], ascending=[True, False]).index[0]
 
 
-def _precargar(planilla, vendidas):
-    """Cantidades con que arranca la tabla: lo guardado, y las manillas sin nada
-    guardado completas en su tarifa plena. Devuelve la planilla con CANT y las
-    manillas precargadas."""
+def _marcar_plenas(planilla, vendidas):
+    """Columna PLENA: True en la tarifa plena de cada manilla vendida (una por
+    manilla). Su cantidad no se digita: se calcula con _calcular."""
     planilla = planilla.copy()
-    planilla["CANT"] = planilla["CANTIDAD"]
-    precargadas = []
-    for id_manilla, total in zip(vendidas["ID_MANILLA"], vendidas["VENDIDAS"]):
+    planilla["PLENA"] = False
+    for id_manilla in vendidas["ID_MANILLA"]:
         tarifas = planilla[planilla["ID_MANILLA"] == id_manilla]
-        if tarifas.empty or total <= 0 or tarifas["CANTIDAD"].notna().any():
-            continue
-        planilla.loc[_tarifa_plena(tarifas), "CANT"] = total
-        precargadas.append(id_manilla)
-    return planilla, precargadas
+        if not tarifas.empty:
+            planilla.loc[_tarifa_plena(tarifas), "PLENA"] = True
+    return planilla
+
+
+def _calcular(planilla, vendidas):
+    """CANT de la tarifa plena = VENDIDAS de la manilla - lo distribuido en sus
+    otras tarifas, y TOTAL = CANT x VALOR en todas las filas."""
+    planilla = planilla.copy()
+    planilla["CANT"] = pd.to_numeric(planilla["CANT"]).astype("Int64")
+    por_manilla = dict(zip(vendidas["ID_MANILLA"], vendidas["VENDIDAS"]))
+    otras = planilla[~planilla["PLENA"]].groupby("ID_MANILLA")["CANT"].sum()
+    for i in planilla.index[planilla["PLENA"]]:
+        id_manilla = planilla.at[i, "ID_MANILLA"]
+        planilla.at[i, "CANT"] = int(por_manilla.get(id_manilla, 0)) - int(otras.get(id_manilla, 0))
+    planilla["TOTAL"] = planilla["CANT"].fillna(0).astype(float) * planilla["VALOR"]
+    return planilla
 
 
 def pesos(valor):
@@ -215,16 +225,17 @@ def _guardar_ventas(fecha, editada, usuario_actual):
         db.cerrar()
 
 
-def _resumen(vendidas, editada):
-    """Por manilla: vendidas (cierre), distribuidas (digitadas) y diferencia."""
-    distribuidas = (editada.assign(C=pd.to_numeric(editada["CANT"]).fillna(0))
-                    .groupby(["ID_MANILLA", "MANILLA"], sort=False)["C"].sum().reset_index())
-    resumen = vendidas.merge(distribuidas, on=["ID_MANILLA", "MANILLA"], how="outer")
-    resumen = resumen.rename(columns={"C": "DISTRIBUIDAS"}).fillna(0).sort_values("ID_MANILLA")
-    resumen["VENDIDAS"] = resumen["VENDIDAS"].astype(int)
-    resumen["DISTRIBUIDAS"] = resumen["DISTRIBUIDAS"].astype(int)
-    resumen["DIFERENCIA"] = resumen["VENDIDAS"] - resumen["DISTRIBUIDAS"]
-    return resumen[(resumen["VENDIDAS"] != 0) | (resumen["DISTRIBUIDAS"] != 0)].reset_index(drop=True)
+def _resumen(vendidas, calculada):
+    """Por manilla: vendidas (cierre), lo distribuido en otras tarifas y lo que
+    queda en la plena."""
+    filas = []
+    for id_manilla, manilla, total in zip(vendidas["ID_MANILLA"], vendidas["MANILLA"], vendidas["VENDIDAS"]):
+        tarifas = calculada[calculada["ID_MANILLA"] == id_manilla]
+        otras = int(tarifas.loc[~tarifas["PLENA"], "CANT"].fillna(0).sum())
+        plena = tarifas.loc[tarifas["PLENA"], "CANT"]
+        filas.append({"MANILLA": manilla, "VENDIDAS": int(total), "OTRAS TARIFAS": otras,
+                      "PLENA": int(plena.iloc[0]) if not plena.empty else None})
+    return pd.DataFrame(filas, columns=["MANILLA", "VENDIDAS", "OTRAS TARIFAS", "PLENA"])
 
 
 def _notificar(mensaje, tipo="success"):
@@ -271,46 +282,72 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
         st.warning("⚠️ Estas manillas tienen vendidas pero no tienen tarifa vigente en la fecha, así que no "
                    "se pueden distribuir: " + ", ".join(sin_tarifa) + ". Créela en Administración → Tarifas.")
 
-    planilla, precargadas = _precargar(planilla, vendidas)
-    if precargadas:
-        st.info("ℹ️ Las manillas sin distribución guardada se cargaron completas a la tarifa plena. "
-                "Pase a las otras tarifas lo que corresponda y guarde.")
+    # Lo que se digita: lo guardado en las tarifas que no son la plena. Si se
+    # intenta cambiar la plena, se descarta ese cambio y la tabla arranca de
+    # nuevo con lo demás ya digitado (BORRADOR).
+    planilla = _marcar_plenas(planilla, vendidas)
+    borrador = st.session_state.get(f"borrador_ventas_{fecha}", {})
+    planilla["CANT"] = pd.array([borrador.get(int(t), c) for t, c in zip(planilla["ID_TARIFA"], planilla["CANTIDAD"])],
+                                dtype="Int64")
+    version = st.session_state.get("version_ventas", 0)
+    clave = f"editor_ventas_{fecha}_{version}"
+    cambios = (st.session_state.get(clave) or {}).get("edited_rows", {})
+    digitado = planilla.copy()
+    for fila, cambio in cambios.items():
+        if "CANT" in cambio:
+            digitado.loc[int(fila), "CANT"] = cambio["CANT"]
+    if any(planilla.at[int(f), "PLENA"] for f, c in cambios.items() if "CANT" in c):
+        st.session_state[f"borrador_ventas_{fecha}"] = {
+            int(t): c for t, c, p in zip(digitado["ID_TARIFA"], digitado["CANT"], digitado["PLENA"]) if not p}
+        st.session_state["version_ventas"] = version + 1
+        st.session_state["aviso_plena"] = True
+        st.rerun()
 
-    # La versión cambia al guardar para que la tabla arranque sin cambios pendientes.
-    clave = f"editor_ventas_{fecha}_{st.session_state.get('version_ventas', 0)}"
-    izquierda, derecha = st.columns([1.15, 1], gap="large")
+    calculada = _calcular(digitado, vendidas)
+    # Lo que se muestra: la plena calculada (las demás filas conservan lo digitado).
+    vista = planilla.assign(
+        CANT=pd.array([c if p else b for b, c, p in zip(planilla["CANT"], calculada["CANT"], planilla["PLENA"])],
+                      dtype="Int64"),
+        TIPO_TXT=[f"{t} 🔒" if p else t for t, p in zip(planilla["TIPO"], planilla["PLENA"])],
+        VALOR_TXT=planilla["VALOR"].map(pesos),
+        TOTAL_TXT=calculada["TOTAL"].map(lambda v: pesos(v) if v else "-"),
+    )
+
+    if st.session_state.pop("aviso_plena", False):
+        st.toast("La cantidad de la tarifa plena no se digita: se calcula sola.", icon="🔒")
+
+    seccion("✍️ Distribuir manillas vendidas",
+            "Digite cuánto se vendió en cada tarifa (convenios, descuentos, cortesías...). La tarifa plena 🔒 "
+            "se calcula sola: VENDIDAS de la manilla menos lo distribuido en sus otras tarifas.")
+    izquierda, derecha = st.columns([1.45, 1], gap="large")
     with izquierda:
-        seccion("✍️ Distribuir manillas vendidas",
-                "Reparta las vendidas de cada manilla entre sus tarifas. Lo distribuido en cada manilla "
-                "debe ser igual a sus vendidas.")
-        editor = planilla.assign(VALOR_TXT=planilla["VALOR"].map(pesos))
-        editada = st.data_editor(
-            editor, hide_index=True, width="stretch",
-            height=38 + 35 * len(editor), placeholder="",
-            column_order=["CATEGORIA", "MANILLA", "TIPO", "VALOR_TXT", "CANT"],
+        st.data_editor(
+            vista, hide_index=True, width="stretch",
+            height=38 + 35 * len(vista), placeholder="",
+            column_order=["CATEGORIA", "MANILLA", "TIPO_TXT", "CANT", "VALOR_TXT", "TOTAL_TXT"],
             column_config={
                 "CATEGORIA": st.column_config.TextColumn("CATEGORÍA", disabled=True),
                 "MANILLA": st.column_config.TextColumn("MANILLA", disabled=True),
-                "TIPO": st.column_config.TextColumn("TIPO", disabled=True),
-                "VALOR_TXT": st.column_config.TextColumn("VALOR", disabled=True, alignment="right"),
+                "TIPO_TXT": st.column_config.TextColumn("TIPO", disabled=True),
                 "CANT": st.column_config.NumberColumn("CANT", min_value=0, step=1, format="%d"),
+                "VALOR_TXT": st.column_config.TextColumn("VALOR", disabled=True, alignment="right"),
+                "TOTAL_TXT": st.column_config.TextColumn("VALOR TOTAL", disabled=True, alignment="right"),
             },
             key=clave,
         )
 
-    cantidades = pd.to_numeric(editada["CANT"]).fillna(0)
-    total_ventas = float((cantidades * editada["VALOR"]).sum())
-    resumen = _resumen(vendidas, editada)
+    cantidades = calculada["CANT"].fillna(0).astype(int)
+    total_ventas = float(calculada["TOTAL"].sum())
+    resumen = _resumen(vendidas, calculada)
     with derecha:
         with st.container(horizontal=True, gap="small"):
             st.metric("Manillas vendidas", total_vendidas, border=True,
                       help=f"Suma de INICIAL - FINAL de las taquillas cerradas ({NOMBRE_CERRAR}).")
-            st.metric("Distribuidas", int(cantidades.sum()), border=True)
             st.metric("Total ventas", pesos(total_ventas), border=True)
-        seccion("🎫 Vendidas por manilla", "DIFERENCIA = VENDIDAS - DISTRIBUIDAS; debe quedar en cero.")
+        seccion("🎫 Vendidas por manilla", "PLENA = VENDIDAS - OTRAS TARIFAS; no puede quedar negativa.")
         st.dataframe(
-            resumen.drop(columns="ID_MANILLA").style.map(
-                lambda v: "color:#b42318;font-weight:700" if v else "color:#3f6212", subset=["DIFERENCIA"]),
+            resumen.style.map(lambda v: "color:#b42318;font-weight:700" if pd.notna(v) and v < 0 else "",
+                              subset=["PLENA"]),
             hide_index=True, width="stretch", height=38 + 35 * len(resumen),
         )
         with st.container(key="acciones_ventas", horizontal=True, horizontal_alignment="right"):
@@ -318,21 +355,23 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
 
     # El estilo va en su propio bloque: los bloques que traen <style> se ocultan.
     st.markdown(ESTILO, unsafe_allow_html=True)
-    st.markdown(cuadro_caja_html(editada.assign(CANTIDAD=cantidades), "Caja general del día"),
+    st.markdown(cuadro_caja_html(calculada.assign(CANTIDAD=cantidades), "Caja general del día"),
                 unsafe_allow_html=True)
 
     if not guardar:
         return
-    descuadradas = [f"{f['MANILLA']}: vendidas {f['VENDIDAS']}, distribuidas {f['DISTRIBUIDAS']}"
-                    for _, f in resumen.iterrows() if f["DIFERENCIA"]]
-    if descuadradas:
-        st.error("❌ Lo distribuido debe ser igual a lo vendido en cada manilla:\n\n- " + "\n- ".join(descuadradas))
+    excedidas = [f"{f['MANILLA']}: vendidas {f['VENDIDAS']}, en otras tarifas {f['OTRAS TARIFAS']}"
+                 for _, f in resumen.iterrows() if pd.notna(f["PLENA"]) and f["PLENA"] < 0]
+    if excedidas:
+        derecha.error("❌ Lo distribuido en las otras tarifas no puede superar lo vendido de la manilla:\n\n- "
+                 + "\n- ".join(excedidas))
         return
     try:
-        _guardar_ventas(fecha, editada, usuario_actual)
+        _guardar_ventas(fecha, calculada, usuario_actual)
     except Exception as e:
-        st.error(f"❌ No fue posible guardar la distribución: {e}")
+        derecha.error(f"❌ No fue posible guardar la distribución: {e}")
         return
-    st.session_state["version_ventas"] = st.session_state.get("version_ventas", 0) + 1
+    st.session_state.pop(f"borrador_ventas_{fecha}", None)
+    st.session_state["version_ventas"] = version + 1
     _notificar(f"✅ Distribución del {fecha:%d/%m/%Y} guardada: {int(cantidades.sum())} manillas por "
                f"{pesos(total_ventas)}.")
