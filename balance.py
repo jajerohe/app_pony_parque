@@ -1,5 +1,6 @@
 """Balance de ventas por día o por mes: totales y
-detalle por taquilla, categoría, manilla y tipo de tarifa."""
+detalle por categoría, manilla y tipo de tarifa (lo guardado en Distribuir
+ventas por día)."""
 
 import calendar
 from datetime import date
@@ -10,7 +11,7 @@ import streamlit as st
 
 from database import Database
 from usuarios import seccion
-from ventas import cuadro_caja_html, pesos
+from ventas import ESTILO, cuadro_caja_html, pesos
 
 MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto",
          "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -29,18 +30,17 @@ def _consultar(sql, parametros=(), columnas=()):
 @st.cache_data(ttl=60, show_spinner=False)
 def obtener_ventas(desde, hasta):
     datos = _consultar(
-        '''SELECT v."FECHA", v."ID_TAQUILLA", t."NOMBRE", c."ID_CATEGORIA", c."NOMBRE",
+        '''SELECT v."FECHA", c."ID_CATEGORIA", c."NOMBRE",
                   m."ID_MANILLA", m."NOMBRE", p."NOMBRE", v."VALOR_UNITARIO", v."CANTIDAD"
            FROM public."VENTAS" v
            JOIN public."TARIFAS" r ON r."ID_TARIFA" = v."ID_TARIFA"
-           JOIN public."TAQUILLAS" t ON t."ID_TAQUILLA" = v."ID_TAQUILLA"
            JOIN public."CATEGORIAS" c ON c."ID_CATEGORIA" = r."ID_CATEGORIA"
            JOIN public."MANILLAS" m ON m."ID_MANILLA" = v."ID_MANILLA"
            JOIN public."TIPOS_TARIFA" p ON p."ID_TIPO" = r."ID_TIPO"
            WHERE v."FECHA" BETWEEN %s AND %s
            ORDER BY v."FECHA", c."ID_CATEGORIA", m."ID_MANILLA", v."VALOR_UNITARIO" DESC''',
         (desde, hasta),
-        ("FECHA", "ID_TAQUILLA", "TAQUILLA", "ID_CATEGORIA", "CATEGORIA", "ID_MANILLA", "MANILLA",
+        ("FECHA", "ID_CATEGORIA", "CATEGORIA", "ID_MANILLA", "MANILLA",
          "TIPO", "VALOR", "CANTIDAD"),
     )
     datos["VALOR"] = datos["VALOR"].astype(float)
@@ -88,7 +88,6 @@ def mostrar_balance(hoy):
     with st.container(horizontal=True, gap="medium"):
         st.metric(f"Ventas · {titulo}", pesos(total), border=True)
         st.metric("Manillas vendidas", f"{int(ventas['CANTIDAD'].sum()):,}".replace(",", "."), border=True)
-        st.metric("Taquillas con ventas", ventas["ID_TAQUILLA"].nunique(), border=True)
         if periodo == "Mes":
             st.metric("Promedio por día", pesos(total / dias) if dias else "—", border=True,
                       help="Total vendido dividido entre los días con ventas.")
@@ -97,21 +96,10 @@ def mostrar_balance(hoy):
         st.info(f"No hay ventas registradas en {titulo}.")
         return
 
-    # Por taquilla.
-    por_taq = ventas.groupby(["ID_TAQUILLA", "TAQUILLA"]).agg(MANILLAS=("CANTIDAD", "sum"),
-                                                              VENTAS=("TOTAL", "sum")).reset_index()
-    por_taq = por_taq.drop(columns="ID_TAQUILLA")
-    por_taq["PARTICIPACIÓN"] = (por_taq["VENTAS"] / total * 100).round(1).astype(str) + " %"
-    por_taq.loc[len(por_taq)] = ["TOTAL", por_taq["MANILLAS"].sum(), por_taq["VENTAS"].sum(), "100.0 %"]
-
-    with st.container(border=True):
-        seccion(f"🎟️ Por taquilla · {titulo}")
-        _tabla_pesos(por_taq, ["VENTAS"], ["MANILLAS"])
-
     if periodo == "Mes":
         with st.container(border=True):
-            seccion("📈 Ventas por día", "Total vendido cada día del mes, por taquilla.")
-            diario = ventas.pivot_table(index="FECHA", columns="TAQUILLA", values="TOTAL", aggfunc="sum").fillna(0)
+            seccion("📈 Ventas por día", "Total vendido cada día del mes, por categoría.")
+            diario = ventas.pivot_table(index="FECHA", columns="CATEGORIA", values="TOTAL", aggfunc="sum").fillna(0)
             diario.index = pd.to_datetime(diario.index)
             st.bar_chart(diario, stack=True, y_label="$", x_label="Día")
             tabla_diaria = diario.copy()
@@ -137,14 +125,15 @@ def mostrar_balance(hoy):
                        [["MANILLA", "TIPO", "VALOR", "CANT", "TOTAL"]])
             _tabla_pesos(detalle, ["VALOR", "TOTAL"], ["CANT"])
     with derecha:
-        # El mismo cuadro de caja, con todas las taquillas sumadas.
+        # El mismo cuadro de caja del periodo.
         cuadro = (ventas.groupby(["ID_CATEGORIA", "CATEGORIA", "ID_MANILLA", "MANILLA", "TIPO", "VALOR"], sort=False)
                   ["CANTIDAD"].sum().reset_index()
                   .sort_values(["ID_CATEGORIA", "ID_MANILLA", "VALOR"], ascending=[True, True, False]))
+        st.markdown(ESTILO, unsafe_allow_html=True)
         st.markdown(cuadro_caja_html(cuadro, f"Caja general · {titulo}"), unsafe_allow_html=True)
 
     st.download_button(
         "Descargar detalle (CSV)", icon=":material/download:",
-        data=ventas.drop(columns=["ID_TAQUILLA", "ID_CATEGORIA", "ID_MANILLA"]).to_csv(index=False).encode("utf-8-sig"),
+        data=ventas.drop(columns=["ID_CATEGORIA", "ID_MANILLA"]).to_csv(index=False).encode("utf-8-sig"),
         file_name=f"ventas_{desde:%Y%m%d}_{hasta:%Y%m%d}.csv", mime="text/csv", key="bal_descargar",
     )

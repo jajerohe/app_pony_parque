@@ -1,7 +1,8 @@
 """Consolidado diario del inventario: una planilla por taquilla, de solo lectura.
 
-Muestra para la fecha elegida, por taquilla, el inventario INICIAL, las VENDIDAS
-(del módulo de ventas) y el FINAL (inicial - vendidas), y el total del día por concepto.
+Muestra para la fecha elegida, por taquilla, el inventario INICIAL, el FINAL
+(del cierre de taquillas) y las VENDIDAS (inicial - final), y el total del día
+por concepto.
 """
 
 from datetime import timedelta
@@ -30,9 +31,7 @@ def obtener_consolidado(fecha):
                       m."ID_MANILLA",
                       m."NOMBRE" || CASE WHEN m."ACTIVO" THEN '' ELSE ' (inactiva)' END,
                       i."CANTIDAD", i."USUARIO_ACTUALIZA", i."FECHA_ACTUALIZA",
-                      (SELECT SUM(v."CANTIDAD") FROM public."VENTAS" v
-                       WHERE v."FECHA" = %(f)s AND v."ID_TAQUILLA" = t."ID_TAQUILLA"
-                         AND v."ID_MANILLA" = m."ID_MANILLA")
+                      i."CANTIDAD" - f."CANTIDAD", f."CANTIDAD"
                FROM public."TAQUILLAS" t
                CROSS JOIN public."MANILLAS" m
                LEFT JOIN public."TAQUILLAS_MANILLAS" a
@@ -40,6 +39,9 @@ def obtener_consolidado(fecha):
                LEFT JOIN public."INVENTARIO_INICIAL" i
                       ON i."ID_TAQUILLA" = t."ID_TAQUILLA" AND i."ID_MANILLA" = m."ID_MANILLA"
                      AND i."FECHA" = %(f)s
+               LEFT JOIN public."INVENTARIO_FINAL" f
+                      ON f."ID_TAQUILLA" = t."ID_TAQUILLA" AND f."ID_MANILLA" = m."ID_MANILLA"
+                     AND f."FECHA" = %(f)s
                WHERE t."ACTIVO"
                  AND ((a."ID_MANILLA" IS NOT NULL AND m."ACTIVO") OR i."CANTIDAD" IS NOT NULL)
                ORDER BY t."ID_TAQUILLA", m."ID_MANILLA"''',
@@ -47,10 +49,9 @@ def obtener_consolidado(fecha):
         )
         datos = pd.DataFrame(db.fetchall(), columns=[
             "ID_TAQUILLA", "TAQUILLA", "UBICACION", "ID_MANILLA", "CONCEPTO",
-            "INICIAL", "USUARIO", "ACTUALIZADO", "VENDIDAS",
+            "INICIAL", "USUARIO", "ACTUALIZADO", "VENDIDAS", "FINAL",
         ])
-        # FINAL = INICIAL - VENDIDAS (solo donde hay inventario inicial).
-        datos["FINAL"] = datos["INICIAL"] - datos["VENDIDAS"].fillna(0)
+        # FINAL viene del cierre de la taquilla; VENDIDAS = INICIAL - FINAL.
         return datos
     finally:
         db.cerrar()
@@ -159,11 +160,11 @@ def mostrar_consolidado_inventario(hoy):
         st.metric("Total manillas inicial", _numero(total_inicial) or "0", border=True)
         st.metric("Vendidas", _numero(datos["VENDIDAS"].fillna(0).sum()) or "0", border=True)
         st.metric("Final", _numero(datos["FINAL"].fillna(0).sum()) or "0", border=True,
-                  help="Inicial menos vendidas, de las taquillas inicializadas.")
+                  help="Inventario final registrado al cerrar las taquillas.")
 
     st.markdown(ESTILO, unsafe_allow_html=True)
     seccion(f"🎟️ Planillas del {fecha.strftime('%d/%m/%Y')}",
-            "Solo lectura. El inicial se carga en Operación → Inicializar taquillas por día y las vendidas en Operación → Distribuir ventas por día.")
+            "Solo lectura. El inicial se carga en Operación → Inicializar taquillas por día y el final en Operación → Cerrar taquillas por día (VENDIDAS = INICIAL - FINAL).")
 
     columnas = st.columns(2, gap="medium")
     for n, (_, taq) in enumerate(taquillas.iterrows()):

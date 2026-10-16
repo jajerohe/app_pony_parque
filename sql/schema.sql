@@ -242,21 +242,45 @@ CREATE UNIQUE INDEX "TARIFAS_UNICA"
     ON public."TARIFAS" ("ID_CATEGORIA", "ID_MANILLA", "ID_TIPO", "VALOR", "DESDE", "HASTA");
 
 -- ============================================================
--- VENTAS DEL DÍA: cantidad vendida por taquilla y tarifa
--- (el valor unitario se guarda para que un cambio de tarifa no altere lo vendido)
+-- VENTAS DEL DÍA: cantidad vendida de cada tarifa en el día (todas las taquillas).
+-- Las vendidas de cada manilla salen del cierre de taquillas (INICIAL - FINAL) y
+-- se distribuyen entre sus tarifas. El valor unitario se guarda para que un
+-- cambio de tarifa no altere lo vendido.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public."VENTAS" (
     "FECHA"             date          NOT NULL,
-    "ID_TAQUILLA"       integer       NOT NULL REFERENCES public."TAQUILLAS" ("ID_TAQUILLA"),
     "ID_TARIFA"         integer       NOT NULL REFERENCES public."TARIFAS" ("ID_TARIFA"),
     "ID_MANILLA"        integer       NOT NULL REFERENCES public."MANILLAS" ("ID_MANILLA"),
     "CANTIDAD"          integer       NOT NULL CHECK ("CANTIDAD" > 0),
     "VALOR_UNITARIO"    numeric(12,2) NOT NULL CHECK ("VALOR_UNITARIO" >= 0),
     "USUARIO_ACTUALIZA" text,
     "FECHA_ACTUALIZA"   timestamptz   NOT NULL DEFAULT now(),
-    PRIMARY KEY ("FECHA", "ID_TAQUILLA", "ID_TARIFA")
+    PRIMARY KEY ("FECHA", "ID_TARIFA")
 );
-CREATE INDEX IF NOT EXISTS "VENTAS_MANILLA" ON public."VENTAS" ("FECHA", "ID_TAQUILLA", "ID_MANILLA");
+-- Bases creadas cuando las ventas eran por taquilla: se suman las de todas las
+-- taquillas por fecha y tarifa y se quita la columna.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'VENTAS' AND column_name = 'ID_TAQUILLA') THEN
+        RETURN;
+    END IF;
+    CREATE TEMP TABLE "VENTAS_DIA" ON COMMIT DROP AS
+    SELECT "FECHA", "ID_TARIFA", min("ID_MANILLA") AS "ID_MANILLA", sum("CANTIDAD") AS "CANTIDAD",
+           max("VALOR_UNITARIO") AS "VALOR_UNITARIO", max("USUARIO_ACTUALIZA") AS "USUARIO_ACTUALIZA",
+           max("FECHA_ACTUALIZA") AS "FECHA_ACTUALIZA"
+    FROM public."VENTAS" GROUP BY "FECHA", "ID_TARIFA";
+    DELETE FROM public."VENTAS";
+    ALTER TABLE public."VENTAS" DROP CONSTRAINT "VENTAS_pkey";
+    DROP INDEX IF EXISTS public."VENTAS_MANILLA";
+    ALTER TABLE public."VENTAS" DROP COLUMN "ID_TAQUILLA";
+    ALTER TABLE public."VENTAS" ADD PRIMARY KEY ("FECHA", "ID_TARIFA");
+    INSERT INTO public."VENTAS" ("FECHA","ID_TARIFA","ID_MANILLA","CANTIDAD","VALOR_UNITARIO",
+                                 "USUARIO_ACTUALIZA","FECHA_ACTUALIZA")
+    SELECT "FECHA","ID_TARIFA","ID_MANILLA","CANTIDAD","VALOR_UNITARIO","USUARIO_ACTUALIZA","FECHA_ACTUALIZA"
+    FROM "VENTAS_DIA";
+END $$;
+CREATE INDEX IF NOT EXISTS "VENTAS_FECHA_MANILLA" ON public."VENTAS" ("FECHA", "ID_MANILLA");
 
 -- ============================================================
 -- INVENTARIO GENERAL: ingresos de manillas al parque (compras, ajustes).
