@@ -483,7 +483,7 @@ with st.sidebar:
         ("operacion", "Operación", ":material/storefront:", "pp_menu_operacion", [
             ("inventario_inicial", ":material/inventory_2:", "Inicializar taquillas por día"),
             ("cierre_taquillas", ":material/lock_clock:", "Cerrar taquillas por día"),
-            ("ventas", ":material/receipt_long:", "Ventas del día"),
+            ("ventas", ":material/receipt_long:", "Distribuir ventas por día"),
             ("consolidado_inventario", ":material/summarize:", "Consolidado inventario"),
         ]),
     ]
@@ -526,7 +526,7 @@ TITULOS_PAGINA = {
     "tipos_tarifa": "Tipos de Tarifa",
     "inventario_inicial": "Inicializar taquillas por día",
     "cierre_taquillas": "Cerrar taquillas por día",
-    "ventas": "Ventas del Día",
+    "ventas": "Distribuir ventas por día",
     "balance": "Balance de Ventas",
     "inventario_general": "Inventario General",
     "consolidado_inventario": "Consolidado de Inventario",
