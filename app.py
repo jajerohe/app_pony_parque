@@ -20,6 +20,7 @@ from taquillas import mostrar_modulo_taquillas
 from tipos_tarifa import mostrar_modulo_tipos_tarifa
 from usuarios import mostrar_mi_cuenta, mostrar_modulo_usuarios
 from ventas import mostrar_modulo_ventas
+from marca import DESCRIPCION_SISTEMA, NOMBRE_SISTEMA, TITULO_PESTANA, fijar_titulo_pestana
 
 ZONA_HORARIA = ZoneInfo("America/Bogota")
 CARPETA_IMAGENES = Path(__file__).parent / "assets"
@@ -30,29 +31,13 @@ def logo_base64():
     return base64.b64encode((CARPETA_IMAGENES / "logo_ponycash.png").read_bytes()).decode()
 
 
-# El nombre va con letras Unicode en negrilla: la pestaña del navegador no admite formato.
-TITULO_PESTANA = "𝗣𝗼𝗻𝘆𝗰𝗮𝘀𝗵 - Caja diaria · Terceros · Inventario de manillas"
-
 st.set_page_config(
     page_title=TITULO_PESTANA,
     page_icon=str(CARPETA_IMAGENES / "icono.png"),
     layout="wide",
     initial_sidebar_state="expanded"
 )
-# Streamlit Cloud agrega « · Streamlit» al título de la pestaña; se deja solo el del sistema.
-st.html(f"""
-<script>
-(() => {{
-    const titulo = {TITULO_PESTANA!r};
-    const fijar = () => {{ if (document.title !== titulo) document.title = titulo; }};
-    fijar();
-    if (window.ppTitulo) return;
-    window.ppTitulo = new MutationObserver(fijar);
-    window.ppTitulo.observe(document.querySelector("title") || document.head,
-                            {{ childList: true, characterData: true, subtree: true }});
-}})();
-</script>
-""", unsafe_allow_javascript=True)
+fijar_titulo_pestana()
 
 # ============================================================
 # OCULTAR BARRA SUPERIOR NATIVA DE STREAMLIT
@@ -204,14 +189,14 @@ def mostrar_login():
 
     st.markdown(
         f'<div class="pp-login-logo"><img src="data:image/png;base64,{logo_base64()}" '
-        'alt="Ponycash"></div>',
+        f'alt="{html.escape(NOMBRE_SISTEMA)}"></div>',
         unsafe_allow_html=True
     )
 
     with st.container(key="login_zona"):
         with st.container(key="login_tarjeta"):
             st.markdown(
-                """
+                f"""
                 <div class="pp-login-icono">
                     <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="#FFFFFF"
                          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -220,7 +205,7 @@ def mostrar_login():
                         <circle cx="12" cy="15.5" r="1.4" fill="#FFFFFF" stroke="none"/>
                     </svg>
                 </div>
-                <div class="pp-login-titulo">Inicia sesión y accede a<br>Ponycash</div>
+                <div class="pp-login-titulo">Inicia sesión y accede a<br>{html.escape(NOMBRE_SISTEMA)}</div>
                 """,
                 unsafe_allow_html=True
             )
@@ -235,9 +220,9 @@ def mostrar_login():
             mensajes = st.container()
 
     st.markdown(
-        """
+        f"""
         <div class="pp-pie">
-            <b>Ponycash</b> - Caja diaria · Terceros · Inventario de manillas<br>
+            <b>{html.escape(NOMBRE_SISTEMA)}</b> - {html.escape(DESCRIPCION_SISTEMA)}<br>
             Powered by <b>JAJEROHE Systems</b>
         </div>
         """,
@@ -459,8 +444,8 @@ st.markdown("""
 
 st.markdown(f"""
 <div class="pp-barra">
-  <div class="pp-barra-logo"><img src="data:image/png;base64,{logo_base64()}" alt="Ponycash"></div>
-  <div class="pp-barra-nombre">Ponycash<span>Caja diaria · Terceros · Inventario de manillas</span></div>
+  <div class="pp-barra-logo"><img src="data:image/png;base64,{logo_base64()}" alt="{html.escape(NOMBRE_SISTEMA)}"></div>
+  <div class="pp-barra-nombre">{html.escape(NOMBRE_SISTEMA)}<span>{html.escape(DESCRIPCION_SISTEMA)}</span></div>
   <div class="pp-barra-acciones">
     <div class="pp-user-pill">👤 {html.escape(nombre_actual or usuario_actual)} · Usuario: {usuario_actual} · Perfil: {perfil_actual or 'Sin perfil'}</div>
     <a class="pp-logout" href="?logout=1" target="_self" title="Cerrar sesión" aria-label="Cerrar sesión"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h3a1 1 0 0 1 1 1v3M18 16v3a1 1 0 0 1-1 1h-3"/><path d="M5 4.5 11 3a1 1 0 0 1 1.2 1v16a1 1 0 0 1-1.2 1L5 19.5z" fill="#fff"/><path d="M14.5 12H22M19 9l3 3-3 3"/></svg></a>

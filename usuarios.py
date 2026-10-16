@@ -16,6 +16,7 @@ import streamlit as st
 
 from correo import configuracion_correo, enviar_correo_bienvenida
 from database import Database
+from marca import NOMBRE_SISTEMA
 
 LONGITUD_MINIMA_CONTRASENA = 8
 PATRON_CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -108,7 +109,7 @@ def encabezado_ventana(titulo):
     st.markdown(
         f'''<div class="pp-topbar pp-dialog-header"><div>
         <div class="pp-top-title">{titulo}</div>
-        <div class="pp-top-subtitle">Ponycash · Pony Parque · Hotel Mesa de los Santos</div>
+        <div class="pp-top-subtitle">{escape(NOMBRE_SISTEMA)} · Pony Parque · Hotel Mesa de los Santos</div>
         </div></div>''',
         unsafe_allow_html=True
     )

@@ -4,12 +4,13 @@ import html
 
 import streamlit as st
 
+from marca import DESCRIPCION_SISTEMA, NOMBRE_SISTEMA
 from usuarios import ficha, seccion
 
 
 def mostrar_inicio(nombre_actual, usuario_actual, perfil_actual, hoy):
     seccion(f"👋 Hola, {html.escape(nombre_actual or usuario_actual)}",
-            "Bienvenido a Ponycash: caja diaria, terceros e inventario de manillas del Pony Parque.")
+            f"Bienvenido a {NOMBRE_SISTEMA}: {DESCRIPCION_SISTEMA.lower()} del Pony Parque.")
     ficha([
         ("Usuario", usuario_actual),
         ("Perfil", perfil_actual),
