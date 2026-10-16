@@ -13,6 +13,7 @@ from consolidado_inventario import mostrar_consolidado_inventario
 from inicio import mostrar_inicio
 from inventario_general import mostrar_inventario_general
 from inventario_inicial import mostrar_modulo_inventario_inicial
+from cierre_taquillas import mostrar_modulo_cierre_taquillas
 from manillas import mostrar_modulo_manillas
 from tarifas import mostrar_modulo_tarifas
 from taquillas import mostrar_modulo_taquillas
@@ -481,6 +482,7 @@ with st.sidebar:
         ]),
         ("operacion", "Operación", ":material/storefront:", "pp_menu_operacion", [
             ("inventario_inicial", ":material/inventory_2:", "Inicializar taquillas por día"),
+            ("cierre_taquillas", ":material/lock_clock:", "Cerrar taquillas por día"),
             ("ventas", ":material/receipt_long:", "Ventas del día"),
             ("consolidado_inventario", ":material/summarize:", "Consolidado inventario"),
         ]),
@@ -523,6 +525,7 @@ TITULOS_PAGINA = {
     "categorias": "Categorías",
     "tipos_tarifa": "Tipos de Tarifa",
     "inventario_inicial": "Inicializar taquillas por día",
+    "cierre_taquillas": "Cerrar taquillas por día",
     "ventas": "Ventas del Día",
     "balance": "Balance de Ventas",
     "inventario_general": "Inventario General",
@@ -547,6 +550,8 @@ try:
         mostrar_modulo_manillas(usuario_actual)
     elif pagina_actual == "inventario_inicial":
         mostrar_modulo_inventario_inicial(usuario_actual, es_administrador, hoy)
+    elif pagina_actual == "cierre_taquillas":
+        mostrar_modulo_cierre_taquillas(usuario_actual, es_administrador, hoy)
     elif pagina_actual == "consolidado_inventario":
         mostrar_consolidado_inventario(hoy)
     elif pagina_actual == "tarifas" and es_administrador:
