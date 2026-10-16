@@ -9,9 +9,10 @@ Se usa un servidor SMTP configurado en los secretos de Streamlit:
     usuario = "notificaciones@dominio.com"
     password = "..."
     remitente = "Pony Parque <notificaciones@dominio.com>"   # opcional
-    app_url = "https://ponyparque.streamlit.app"             # opcional
+    app_url = "https://appponyparque.streamlit.app"          # opcional
 """
 
+import base64
 import smtplib
 import ssl
 from datetime import datetime
@@ -201,19 +202,34 @@ Este es un mensaje automático, por favor no responda a este correo.
     return asunto, texto, _plantilla(f"¡Bienvenido a {NOMBRE_SISTEMA}!", cuerpo)
 
 
-def enviar_correo_bienvenida(nombre, usuario, correo, perfil, contrasena, descripcion_perfil=None):
-    """Envía el correo de bienvenida. Lanza una excepción si no es posible."""
+def remitente():
+    """Remitente configurado ("Ponycash <cuenta@...>") o None si no hay correo configurado."""
+    config = configuracion_correo()
+    if config is None:
+        return None
+    return config.get("remitente") or formataddr((NOMBRE_SISTEMA, config["usuario"]))
+
+
+def vista_previa_html(html):
+    """El HTML del correo con el logo incrustado, para mostrarlo en pantalla
+    (en el correo real el logo va como imagen adjunta cid:)."""
+    if LOGO.exists():
+        datos = base64.b64encode(LOGO.read_bytes()).decode()
+        html = html.replace(f"cid:{CID_LOGO}", f"data:image/png;base64,{datos}")
+    return html
+
+
+def enviar_correo(asunto, texto, html, para):
+    """Envía el correo a la lista de destinatarios PARA. Devuelve cuántos son."""
     config = configuracion_correo()
     if config is None:
         raise RuntimeError("Falta configurar la sección [email] en los secretos de la aplicación.")
-
-    app_url = config.get("app_url") or APP_URL_DEFECTO
-    asunto, texto, html = construir_correo_bienvenida(
-        nombre, usuario, correo, perfil, contrasena, app_url, descripcion_perfil
-    )
-
+    para = [c.strip() for c in para if c and c.strip()]
+    if not para:
+        raise RuntimeError("El correo no tiene destinatarios.")
     with _servidor_smtp(config) as servidor:
-        servidor.send_message(_armar_mensaje(config, correo, asunto, texto, html))
+        servidor.send_message(_armar_mensaje(config, ", ".join(para), asunto, texto, html))
+    return len(para)
 
 
 def _armar_mensaje(config, destinatario, asunto, texto, html):

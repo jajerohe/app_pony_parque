@@ -14,7 +14,7 @@ import pandas as pd
 import psycopg
 import streamlit as st
 
-from correo import configuracion_correo, enviar_correo_bienvenida
+from correo import APP_URL_DEFECTO, configuracion_correo, construir_correo_bienvenida
 from database import Database
 from marca import NOMBRE_SISTEMA
 
@@ -182,12 +182,12 @@ def ventana_crear_usuario(perfiles):
 
         correo_configurado = configuracion_correo() is not None
         enviar_bienvenida = st.checkbox(
-            "Enviar correo de bienvenida con los datos de acceso",
+            "Preparar el correo de bienvenida (vista previa antes de enviar)",
             value=correo_configurado,
             disabled=not correo_configurado,
             help=(
-                "Se envía al correo registrado: dirección de acceso, usuario, perfil, "
-                "contraseña temporal y procedimiento de ingreso."
+                "Al crear el usuario se muestra el correo (dirección de acceso, usuario, perfil, "
+                "contraseña temporal y procedimiento de ingreso) y allí decide si lo envía."
                 if correo_configurado else
                 "Configure la sección [email] en los secretos de la aplicación para habilitar el envío."
             )
@@ -228,25 +228,31 @@ def ventana_crear_usuario(perfiles):
     if not enviar_bienvenida:
         notificar(f"✅ Usuario {usuario} creado correctamente.")
 
-    # El usuario ya quedó creado; un fallo en el correo solo genera un aviso.
+    # El usuario ya quedó creado; el correo se revisa en la vista previa
+    # (envios.py) y se envía desde allí. Un fallo al prepararlo solo avisa.
     try:
-        with st.spinner("Enviando correo de bienvenida..."):
-            enviar_correo_bienvenida(
-                nombre=nombre,
-                usuario=usuario,
-                correo=correo,
-                perfil=perfil,
-                contrasena=contrasena,
-                descripcion_perfil=obtener_descripcion_perfil(perfil),
-            )
+        from envios import programar_envio  # aquí para evitar la importación circular
+
+        config = configuracion_correo() or {}
+        asunto, texto, html = construir_correo_bienvenida(
+            nombre=nombre,
+            usuario=usuario,
+            correo=correo,
+            perfil=perfil,
+            contrasena=contrasena,
+            app_url=config.get("app_url") or APP_URL_DEFECTO,
+            descripcion_perfil=obtener_descripcion_perfil(perfil),
+        )
+        programar_envio("Correo de bienvenida", asunto, texto, html, para=[correo],
+                        aviso_ok=f"Correo de bienvenida de {usuario} enviado")
     except Exception as e:
         notificar(
-            f"✅ Usuario {usuario} creado correctamente, pero no fue posible enviar "
+            f"✅ Usuario {usuario} creado correctamente, pero no fue posible preparar "
             f"el correo de bienvenida a {correo}: {e}",
             tipo="warning"
         )
 
-    notificar(f"✅ Usuario {usuario} creado correctamente. Se envió el correo de bienvenida a {correo}.")
+    notificar(f"✅ Usuario {usuario} creado correctamente. Revise el correo de bienvenida antes de enviarlo.")
 
 
 @st.dialog(" ", width="large")
