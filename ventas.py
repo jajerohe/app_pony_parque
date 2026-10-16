@@ -282,9 +282,9 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
         st.warning("⚠️ Estas manillas tienen vendidas pero no tienen tarifa vigente en la fecha, así que no "
                    "se pueden distribuir: " + ", ".join(sin_tarifa) + ". Créela en Administración → Tarifas.")
 
-    # Lo que se digita: lo guardado en las tarifas que no son la plena. Si se
-    # intenta cambiar la plena, se descarta ese cambio y la tabla arranca de
-    # nuevo con lo demás ya digitado (BORRADOR).
+    # Lo que se digita: lo guardado en las tarifas que no son la plena. Cuando un
+    # cambio no se acepta (digitar la plena, o pasarse de lo vendido) se descarta
+    # y la tabla arranca de nuevo con lo demás ya digitado (BORRADOR).
     planilla = _marcar_plenas(planilla, vendidas)
     borrador = st.session_state.get(f"borrador_ventas_{fecha}", {})
     planilla["CANT"] = pd.array([borrador.get(int(t), c) for t, c in zip(planilla["ID_TARIFA"], planilla["CANTIDAD"])],
@@ -292,16 +292,41 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
     version = st.session_state.get("version_ventas", 0)
     clave = f"editor_ventas_{fecha}_{version}"
     cambios = (st.session_state.get(clave) or {}).get("edited_rows", {})
+    anteriores = st.session_state.get(f"cambios_{clave}", {})
     digitado = planilla.copy()
     for fila, cambio in cambios.items():
         if "CANT" in cambio:
             digitado.loc[int(fila), "CANT"] = cambio["CANT"]
-    if any(planilla.at[int(f), "PLENA"] for f, c in cambios.items() if "CANT" in c):
+
+    def reiniciar(aviso):
         st.session_state[f"borrador_ventas_{fecha}"] = {
             int(t): c for t, c, p in zip(digitado["ID_TARIFA"], digitado["CANT"], digitado["PLENA"]) if not p}
         st.session_state["version_ventas"] = version + 1
-        st.session_state["aviso_plena"] = True
+        st.session_state["aviso_ventas"] = aviso
         st.rerun()
+
+    if any(planilla.at[int(f), "PLENA"] for f, c in cambios.items() if "CANT" in c):
+        reiniciar("🔒 La cantidad de la tarifa plena no se digita: se calcula sola.")
+
+    # Lo nuevo que deje la plena en negativo vuelve a su valor anterior.
+    por_manilla = dict(zip(vendidas["ID_MANILLA"], vendidas["VENDIDAS"]))
+    avisos = []
+    for fila, cambio in cambios.items():
+        i = int(fila)
+        if anteriores.get(fila) == cambio or "CANT" not in cambio or digitado.at[i, "PLENA"]:
+            continue
+        id_manilla = digitado.at[i, "ID_MANILLA"]
+        otras = digitado[(digitado["ID_MANILLA"] == id_manilla) & ~digitado["PLENA"]]
+        vendidas_manilla = int(por_manilla.get(id_manilla, 0))
+        if int(otras["CANT"].fillna(0).sum()) > vendidas_manilla:
+            previo = anteriores.get(fila, {}).get("CANT", planilla.at[i, "CANT"])
+            digitado.loc[i, "CANT"] = previo
+            resto = int(otras.drop(index=i)["CANT"].fillna(0).sum())
+            avisos.append(f"{digitado.at[i, 'MANILLA']} · {digitado.at[i, 'TIPO']}: vendió {vendidas_manilla} y ya "
+                          f"hay {resto} en otras tarifas, así que caben máximo {max(vendidas_manilla - resto, 0)}.")
+    if avisos:
+        reiniciar("❌ No se aceptó el valor: " + " ".join(avisos))
+    st.session_state[f"cambios_{clave}"] = dict(cambios)
 
     calculada = _calcular(digitado, vendidas)
     # Lo que se muestra: la plena calculada (las demás filas conservan lo digitado).
@@ -313,9 +338,10 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
         TOTAL_TXT=calculada["TOTAL"].map(lambda v: pesos(v) if v else "-"),
     )
 
-    if st.session_state.pop("aviso_plena", False):
-        st.toast("La cantidad de la tarifa plena no se digita: se calcula sola.", icon="🔒")
 
+    aviso = st.session_state.pop("aviso_ventas", None)
+    if aviso:
+        (st.error if aviso.startswith("❌") else st.info)(aviso)
     seccion("✍️ Distribuir manillas vendidas",
             "Digite cuánto se vendió en cada tarifa (convenios, descuentos, cortesías...). La tarifa plena 🔒 "
             "se calcula sola: VENDIDAS de la manilla menos lo distribuido en sus otras tarifas.")
