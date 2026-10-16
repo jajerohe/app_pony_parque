@@ -108,6 +108,20 @@ CREATE TABLE IF NOT EXISTS public."INVENTARIO_INICIAL" (
 );
 
 -- ============================================================
+-- INVENTARIO FINAL DE MANILLAS POR TAQUILLA Y FECHA (cierre de taquillas)
+-- VENDIDAS = INICIAL - FINAL
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."INVENTARIO_FINAL" (
+    "FECHA"             date    NOT NULL,
+    "ID_TAQUILLA"       integer NOT NULL REFERENCES public."TAQUILLAS" ("ID_TAQUILLA"),
+    "ID_MANILLA"        integer NOT NULL REFERENCES public."MANILLAS" ("ID_MANILLA"),
+    "CANTIDAD"          integer NOT NULL CHECK ("CANTIDAD" >= 0),
+    "USUARIO_ACTUALIZA" text,
+    "FECHA_ACTUALIZA"   timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY ("FECHA", "ID_TAQUILLA", "ID_MANILLA")
+);
+
+-- ============================================================
 -- CATEGORÍAS Y TIPOS DE TARIFA
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public."CATEGORIAS" (
