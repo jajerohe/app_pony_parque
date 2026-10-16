@@ -203,7 +203,7 @@ def mostrar_login():
                         <circle cx="12" cy="15.5" r="1.4" fill="#FFFFFF" stroke="none"/>
                     </svg>
                 </div>
-                <div class="pp-login-titulo">Inicia sesión en el<br>sistema de gestión</div>
+                <div class="pp-login-titulo">Inicia sesión y accede a<br>Ponycash</div>
                 """,
                 unsafe_allow_html=True
             )
