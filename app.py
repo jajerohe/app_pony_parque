@@ -480,7 +480,7 @@ with st.sidebar:
             ("mi_cuenta", ":material/key:", "Mi cuenta"),
         ]),
         ("operacion", "Operación", ":material/storefront:", "pp_menu_operacion", [
-            ("inventario_inicial", ":material/inventory_2:", "Inventario inicial"),
+            ("inventario_inicial", ":material/inventory_2:", "Inicializar taquillas por día"),
             ("ventas", ":material/receipt_long:", "Ventas del día"),
             ("consolidado_inventario", ":material/summarize:", "Consolidado inventario"),
         ]),
@@ -522,7 +522,7 @@ TITULOS_PAGINA = {
     "tarifas": "Tarifas",
     "categorias": "Categorías",
     "tipos_tarifa": "Tipos de Tarifa",
-    "inventario_inicial": "Inventario Inicial",
+    "inventario_inicial": "Inicializar taquillas por día",
     "ventas": "Ventas del Día",
     "balance": "Balance de Ventas",
     "inventario_general": "Inventario General",

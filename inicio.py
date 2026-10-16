@@ -18,4 +18,4 @@ def mostrar_inicio(nombre_actual, usuario_actual, perfil_actual, hoy):
 
     with st.container(border=True):
         seccion("🧩 Módulos", "Los módulos del sistema se irán agregando aquí a medida que se construyan.")
-        st.info("Por ahora están disponibles **Mi cuenta**, **Inventario inicial**, **Ventas del día**, **Consolidado inventario** y, para el administrador, **Balance**, **Inventario general**, **Usuarios**, **Taquillas**, **Manillas**, **Tarifas**, **Categorías** y **Tipos de tarifa**.")
+        st.info("Por ahora están disponibles **Mi cuenta**, **Inicializar taquillas por día**, **Ventas del día**, **Consolidado inventario** y, para el administrador, **Balance**, **Inventario general**, **Usuarios**, **Taquillas**, **Manillas**, **Tarifas**, **Categorías** y **Tipos de tarifa**.")
