@@ -24,8 +24,9 @@ from pathlib import Path
 
 import streamlit as st
 
-NOMBRE_SISTEMA = "Ponycash"
-DESCRIPCION_SISTEMA = "Caja diaria · Terceros · Inventario de manillas · Pony Parque"
+from marca import DESCRIPCION_SISTEMA as _DESCRIPCION, NOMBRE_SISTEMA
+
+DESCRIPCION_SISTEMA = f"{_DESCRIPCION} · Pony Parque"
 APP_URL_DEFECTO = "https://appponyparque.streamlit.app"
 LOGO = Path(__file__).parent / "assets" / "logo_correo_ponycash.png"
 CID_LOGO = "logo_ponycash"
