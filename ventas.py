@@ -137,6 +137,25 @@ def pesos(valor):
     return f"{signo}$ {abs(valor):,.0f}".replace(",", ".")
 
 
+# Tabla para digitar: una fila por tarifa, con el campo CANT solo en las que no son la plena.
+ESTILO_GRILLA = """<style>
+.st-key-ven_grilla{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.st-key-ven_grilla [class*="st-key-ven_fila_"]{border-bottom:1px solid #e6d9c6!important;padding:3px 10px!important;min-height:38px;justify-content:center}
+.st-key-ven_grilla [class*="st-key-ven_fila_"]:last-child{border-bottom:none}
+.st-key-ven_fila_titulos{background:#faf6ef;border-bottom:1px solid var(--border);padding:0 10px;min-height:36px;justify-content:center}
+.st-key-ven_fila_titulos p{font-size:11px!important;color:var(--muted)!important;letter-spacing:.3px}
+.st-key-ven_grilla p{font-size:13px;margin:0!important;line-height:1.3}
+.st-key-ven_grilla [data-testid="stColumn"]:nth-child(n+4) p{text-align:right}
+.st-key-ven_grilla [data-testid="stNumberInputContainer"]{height:30px!important;min-height:30px!important}
+.st-key-ven_grilla [data-testid="stNumberInput"] input{padding:2px 8px;text-align:right;font-size:13px}
+.st-key-ven_grilla [data-testid="stNumberInputStepUp"],.st-key-ven_grilla [data-testid="stNumberInputStepDown"]{display:none}
+.st-key-ven_grilla [data-testid="stColumn"]{display:flex;flex-direction:column;justify-content:center}
+.st-key-ven_grilla [data-testid="stColumn"] [data-testid="stElementContainer"],.st-key-ven_grilla [data-testid="stMarkdown"]{height:auto!important}
+.st-key-ven_grilla [data-testid="stNumberInputField"]{height:30px!important;line-height:30px;padding:0 8px!important}
+.st-key-ven_grilla [class*="st-key-ven_plena_"] p{font-weight:800;background:#f4ece0;border-radius:6px;padding:0 8px;line-height:30px}
+</style>"""
+
+
 # ============================================================
 # CUADRO «CAJA GENERAL TAQUILLA DEL DÍA»
 # ============================================================
@@ -282,85 +301,72 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
         st.warning("⚠️ Estas manillas tienen vendidas pero no tienen tarifa vigente en la fecha, así que no "
                    "se pueden distribuir: " + ", ".join(sin_tarifa) + ". Créela en Administración → Tarifas.")
 
-    # Lo que se digita: lo guardado en las tarifas que no son la plena. Cuando un
-    # cambio no se acepta (digitar la plena, o pasarse de lo vendido) se descarta
-    # y la tabla arranca de nuevo con lo demás ya digitado (BORRADOR).
+    # Una fila por tarifa: las que se digitan tienen un campo numérico y la plena
+    # 🔒 es solo texto (se calcula). Cada campo guarda su valor en la sesión; al
+    # cambiarlo se revisa que la manilla no quede con más de lo vendido.
     planilla = _marcar_plenas(planilla, vendidas)
-    borrador = st.session_state.get(f"borrador_ventas_{fecha}", {})
-    planilla["CANT"] = pd.array([borrador.get(int(t), c) for t, c in zip(planilla["ID_TARIFA"], planilla["CANTIDAD"])],
-                                dtype="Int64")
     version = st.session_state.get("version_ventas", 0)
-    clave = f"editor_ventas_{fecha}_{version}"
-    cambios = (st.session_state.get(clave) or {}).get("edited_rows", {})
-    anteriores = st.session_state.get(f"cambios_{clave}", {})
-    digitado = planilla.copy()
-    for fila, cambio in cambios.items():
-        if "CANT" in cambio:
-            digitado.loc[int(fila), "CANT"] = cambio["CANT"]
-
-    def reiniciar(aviso):
-        st.session_state[f"borrador_ventas_{fecha}"] = {
-            int(t): c for t, c, p in zip(digitado["ID_TARIFA"], digitado["CANT"], digitado["PLENA"]) if not p}
-        st.session_state["version_ventas"] = version + 1
-        st.session_state["aviso_ventas"] = aviso
-        st.rerun()
-
-    if any(planilla.at[int(f), "PLENA"] for f, c in cambios.items() if "CANT" in c):
-        reiniciar("🔒 La cantidad de la tarifa plena no se digita: se calcula sola.")
-
-    # Lo nuevo que deje la plena en negativo vuelve a su valor anterior.
+    prefijo = f"ven_{fecha}_{version}"
+    previos = st.session_state.setdefault(f"previos_{prefijo}", {})
     por_manilla = dict(zip(vendidas["ID_MANILLA"], vendidas["VENDIDAS"]))
-    avisos = []
-    for fila, cambio in cambios.items():
-        i = int(fila)
-        if anteriores.get(fila) == cambio or "CANT" not in cambio or digitado.at[i, "PLENA"]:
-            continue
-        id_manilla = digitado.at[i, "ID_MANILLA"]
-        otras = digitado[(digitado["ID_MANILLA"] == id_manilla) & ~digitado["PLENA"]]
+    claves = {i: f"{prefijo}_{int(t)}" for i, t in zip(planilla.index, planilla["ID_TARIFA"])}
+    for i in planilla.index:
+        if not planilla.at[i, "PLENA"] and claves[i] not in previos:
+            guardada = planilla.at[i, "CANTIDAD"]
+            previos[claves[i]] = None if pd.isna(guardada) else int(guardada)
+
+    def al_cambiar(i):
+        clave = claves[i]
+        id_manilla = planilla.at[i, "ID_MANILLA"]
+        otras = sum(int(st.session_state.get(claves[j], previos.get(claves[j])) or 0)
+                    for j in planilla.index[(planilla["ID_MANILLA"] == id_manilla) & ~planilla["PLENA"]])
         vendidas_manilla = int(por_manilla.get(id_manilla, 0))
-        if int(otras["CANT"].fillna(0).sum()) > vendidas_manilla:
-            previo = anteriores.get(fila, {}).get("CANT", planilla.at[i, "CANT"])
-            digitado.loc[i, "CANT"] = previo
-            resto = int(otras.drop(index=i)["CANT"].fillna(0).sum())
-            avisos.append(f"{digitado.at[i, 'MANILLA']} · {digitado.at[i, 'TIPO']}: vendió {vendidas_manilla} y ya "
-                          f"hay {resto} en otras tarifas, así que caben máximo {max(vendidas_manilla - resto, 0)}.")
-    if avisos:
-        reiniciar("❌ No se aceptó el valor: " + " ".join(avisos))
-    st.session_state[f"cambios_{clave}"] = dict(cambios)
+        if otras > vendidas_manilla:
+            resto = otras - int(st.session_state[clave] or 0)
+            st.session_state[clave] = previos[clave]
+            st.session_state["aviso_ventas"] = (
+                f"❌ No se aceptó el valor: {planilla.at[i, 'MANILLA']} · {planilla.at[i, 'TIPO']}: vendió "
+                f"{vendidas_manilla} y ya hay {resto} en otras tarifas, así que caben máximo "
+                f"{max(vendidas_manilla - resto, 0)}.")
+        else:
+            previos[clave] = st.session_state[clave]
 
+    digitado = planilla.copy()
+    digitado["CANT"] = pd.array([None if p else st.session_state.get(claves[i], previos[claves[i]])
+                                 for i, p in zip(planilla.index, planilla["PLENA"])], dtype="Int64")
     calculada = _calcular(digitado, vendidas)
-    # Lo que se muestra: la plena calculada (las demás filas conservan lo digitado).
-    vista = planilla.assign(
-        CANT=pd.array([c if p else b for b, c, p in zip(planilla["CANT"], calculada["CANT"], planilla["PLENA"])],
-                      dtype="Int64"),
-        TIPO_TXT=[f"{t} 🔒" if p else t for t, p in zip(planilla["TIPO"], planilla["PLENA"])],
-        VALOR_TXT=planilla["VALOR"].map(pesos),
-        TOTAL_TXT=calculada["TOTAL"].map(lambda v: pesos(v) if v else "-"),
-    )
-
 
     aviso = st.session_state.pop("aviso_ventas", None)
     if aviso:
-        (st.error if aviso.startswith("❌") else st.info)(aviso)
+        st.error(aviso)
     seccion("✍️ Distribuir manillas vendidas",
             "Digite cuánto se vendió en cada tarifa (convenios, descuentos, cortesías...). La tarifa plena 🔒 "
             "se calcula sola: VENDIDAS de la manilla menos lo distribuido en sus otras tarifas.")
+    st.markdown(ESTILO_GRILLA, unsafe_allow_html=True)
     izquierda, derecha = st.columns([1.45, 1], gap="large")
-    with izquierda:
-        st.data_editor(
-            vista, hide_index=True, width="stretch",
-            height=38 + 35 * len(vista), placeholder="",
-            column_order=["CATEGORIA", "MANILLA", "TIPO_TXT", "CANT", "VALOR_TXT", "TOTAL_TXT"],
-            column_config={
-                "CATEGORIA": st.column_config.TextColumn("CATEGORÍA", disabled=True),
-                "MANILLA": st.column_config.TextColumn("MANILLA", disabled=True),
-                "TIPO_TXT": st.column_config.TextColumn("TIPO", disabled=True),
-                "CANT": st.column_config.NumberColumn("CANT", min_value=0, step=1, format="%d"),
-                "VALOR_TXT": st.column_config.TextColumn("VALOR", disabled=True, alignment="right"),
-                "TOTAL_TXT": st.column_config.TextColumn("VALOR TOTAL", disabled=True, alignment="right"),
-            },
-            key=clave,
-        )
+    anchos = [1, 1.5, 1.3, 0.8, 1, 1.1]
+    with izquierda, st.container(key="ven_grilla", gap=None):
+        with st.container(key="ven_fila_titulos"):
+            for col, titulo in zip(st.columns(anchos, gap="small"),
+                                   ["CATEGORÍA", "MANILLA", "TIPO", "CANT", "VALOR", "VALOR TOTAL"]):
+                col.markdown(titulo)
+        for n, i in enumerate(planilla.index):
+            f = calculada.loc[i]
+            with st.container(key=f"ven_fila_{n}"):
+                c = st.columns(anchos, gap="small", vertical_alignment="center")
+                c[0].markdown(escape(f["CATEGORIA"]))
+                c[1].markdown(escape(f["MANILLA"]))
+                if f["PLENA"]:
+                    c[2].markdown(f"{escape(f['TIPO'])} 🔒")
+                    with c[3], st.container(key=f"ven_plena_{n}"):
+                        st.markdown(f"{int(f['CANT'])}", help="Se calcula sola: VENDIDAS - otras tarifas.")
+                else:
+                    c[2].markdown(escape(f["TIPO"]))
+                    c[3].number_input("CANT", value=previos[claves[i]], min_value=0, step=1, key=claves[i],
+                                      label_visibility="collapsed", placeholder="", on_change=al_cambiar,
+                                      args=(i,))
+                c[4].markdown(pesos(f["VALOR"]))
+                c[5].markdown(pesos(f["TOTAL"]) if f["TOTAL"] else "\\-")
 
     cantidades = calculada["CANT"].fillna(0).astype(int)
     total_ventas = float(calculada["TOTAL"].sum())
@@ -397,7 +403,6 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
     except Exception as e:
         derecha.error(f"❌ No fue posible guardar la distribución: {e}")
         return
-    st.session_state.pop(f"borrador_ventas_{fecha}", None)
     st.session_state["version_ventas"] = version + 1
     _notificar(f"✅ Distribución del {fecha:%d/%m/%Y} guardada: {int(cantidades.sum())} manillas por "
                f"{pesos(total_ventas)}.")
