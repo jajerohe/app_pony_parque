@@ -235,7 +235,7 @@ def mostrar_modulo_ventas(usuario_actual, es_administrador, hoy):
 
     if inventario["INICIAL"].isna().all():
         st.warning(f"⚠️ {nombres[id_taquilla]} no tiene inventario inicial el {fecha:%d/%m/%Y}. "
-                   "Cárguelo primero en Operación → Inventario inicial.")
+                   "Cárguelo primero en Operación → Inicializar taquillas por día.")
         return
     if planilla.empty:
         st.info("Esta taquilla no tiene tarifas vigentes en la fecha. Revise que tenga manillas asignadas "

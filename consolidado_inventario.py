@@ -163,7 +163,7 @@ def mostrar_consolidado_inventario(hoy):
 
     st.markdown(ESTILO, unsafe_allow_html=True)
     seccion(f"🎟️ Planillas del {fecha.strftime('%d/%m/%Y')}",
-            "Solo lectura. El inicial se carga en Operación → Inventario inicial y las vendidas en Operación → Ventas del día.")
+            "Solo lectura. El inicial se carga en Operación → Inicializar taquillas por día y las vendidas en Operación → Ventas del día.")
 
     columnas = st.columns(2, gap="medium")
     for n, (_, taq) in enumerate(taquillas.iterrows()):
