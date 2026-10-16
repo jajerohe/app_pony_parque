@@ -30,12 +30,29 @@ def logo_base64():
     return base64.b64encode((CARPETA_IMAGENES / "logo_ponycash.png").read_bytes()).decode()
 
 
+# El nombre va con letras Unicode en negrilla: la pestaña del navegador no admite formato.
+TITULO_PESTANA = "𝗣𝗼𝗻𝘆𝗰𝗮𝘀𝗵 - Caja diaria · Terceros · Inventario de manillas"
+
 st.set_page_config(
-    page_title="Ponycash",
+    page_title=TITULO_PESTANA,
     page_icon=str(CARPETA_IMAGENES / "icono.png"),
     layout="wide",
     initial_sidebar_state="expanded"
 )
+# Streamlit Cloud agrega « · Streamlit» al título de la pestaña; se deja solo el del sistema.
+st.html(f"""
+<script>
+(() => {{
+    const titulo = {TITULO_PESTANA!r};
+    const fijar = () => {{ if (document.title !== titulo) document.title = titulo; }};
+    fijar();
+    if (window.ppTitulo) return;
+    window.ppTitulo = new MutationObserver(fijar);
+    window.ppTitulo.observe(document.querySelector("title") || document.head,
+                            {{ childList: true, characterData: true, subtree: true }});
+}})();
+</script>
+""", unsafe_allow_javascript=True)
 
 # ============================================================
 # OCULTAR BARRA SUPERIOR NATIVA DE STREAMLIT
